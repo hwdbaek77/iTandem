@@ -42,7 +42,6 @@ const {
   TRANSACTION_STATUS,
   OFFENSE_TYPES,
   REPORT_TYPES,
-  REPORT_STATUS,
   PRICING,
   CANCELLATION_POLICY,
 } = require('../utils/constants');
@@ -380,11 +379,10 @@ class RentalService {
 
   /**
    * Handle a blocked-spot report:
-   *   1. File the report
-   *   2. Fine the blocker (if identified)
-   *   3. Find a replacement spot in the same lot
-   *   4. Create a new rental for the replacement spot
-   *   5. Pay the new spot owner with the original rental payment
+   *   1. Fine the blocker (if identified)
+   *   2. Find a replacement spot in the same lot
+   *   3. Create a new rental for the replacement spot
+   *   4. Pay the new spot owner with the original rental payment
    *
    * Per Review.md: only reassign to spots of equal or lesser distance.
    * Limit to 1 reassignment per rental.
@@ -395,8 +393,7 @@ class RentalService {
    * @param  {string} [params.blockerUserId]   - The offender (if license plate identified)
    * @param  {string} [params.blockerPlate]    - The offender's license plate
    * @param  {string} params.description       - Description of the incident
-   * @param  {string[]} [params.photoUrls]     - Evidence photos
-   * @return {{ report: Report, penalty: Penalty|null, newRental: SpotRental|null, message: string }}
+   * @return {{ penalty: Penalty|null, newRental: SpotRental|null, message: string }}
    */
   handleBlockedSpot({
     rentalId,
@@ -404,7 +401,6 @@ class RentalService {
     blockerUserId = null,
     blockerPlate = null,
     description = '',
-    photoUrls = [],
   }) {
     const rental = this.rentals.get(rentalId);
     if (!rental) throw new Error(`Rental ${rentalId} not found`);
@@ -414,10 +410,10 @@ class RentalService {
 
     // Prevent cascading reassignments (max 1 per rental)
     if (rental.isReassignment()) {
-      throw new Error('This rental is already a reassignment. Please contact an admin.');
+      throw new Error('This rental is already a reassignment.');
     }
 
-    // ── 1. File the report ──────────────────────────────────────────────
+    // ── 1. Create internal report record (for tracking) ──────────────────
     const report = new Report({
       reportId: generateId(),
       reporterUserId,
@@ -425,10 +421,8 @@ class RentalService {
       rentalId,
       reportType: REPORT_TYPES.BLOCKED_SPOT,
       description,
-      photoUrls,
     });
     this.reports.set(report.reportId, report);
-    report.startInvestigation();
 
     // ── 2. Fine the blocker (if identified) ─────────────────────────────
     let penalty = null;
@@ -494,10 +488,9 @@ class RentalService {
       rental.dispute();
       this.unlistSpot(best.spot.spotId, dateStr);
 
-      report.resolve('Automatically reassigned to a nearby spot');
       message = `Reassigned to spot ${best.spot.spotNumber} in ${best.spot.lotName} lot`;
     } else {
-      // ── No suitable spot → full refund + platform credit ──────────────
+      // ── No suitable spot → full refund ─────────────────────────────────
       const refund = new Transaction({
         transactionId: generateId(),
         rentalId,
@@ -508,11 +501,10 @@ class RentalService {
       this.transactions.set(refund.transactionId, refund);
 
       rental.dispute();
-      report.resolve('No suitable replacement spot available. Full refund issued.');
       message = 'No replacement spot available. You have been fully refunded.';
     }
 
-    return { report, penalty, newRental, message };
+    return { penalty, newRental, message };
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -561,52 +553,6 @@ class RentalService {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  //  7.  REPORTS
-  // ═══════════════════════════════════════════════════════════════════════
-
-  /**
-   * File a general dispute report (not blocked-spot; for damage, harassment, etc.).
-   * @param  {Object} params
-   * @return {Report}
-   */
-  fileReport({ reporterUserId, reportedUserId, rentalId, reportType, description, photoUrls }) {
-    const report = new Report({
-      reportId: generateId(),
-      reporterUserId,
-      reportedUserId,
-      rentalId,
-      reportType,
-      description,
-      photoUrls,
-    });
-    this.reports.set(report.reportId, report);
-    return report;
-  }
-
-  /**
-   * Admin resolves a report.
-   * @param {string} reportId
-   * @param {string} adminNotes
-   */
-  resolveReport(reportId, adminNotes) {
-    const report = this.reports.get(reportId);
-    if (!report) throw new Error(`Report ${reportId} not found`);
-    report.resolve(adminNotes);
-    return report;
-  }
-
-  /**
-   * Admin dismisses a report.
-   * @param {string} reportId
-   * @param {string} adminNotes
-   */
-  dismissReport(reportId, adminNotes) {
-    const report = this.reports.get(reportId);
-    if (!report) throw new Error(`Report ${reportId} not found`);
-    report.dismiss(adminNotes);
-    return report;
-  }
 
   // ═══════════════════════════════════════════════════════════════════════
   //  8.  QUERIES
@@ -657,14 +603,6 @@ class RentalService {
    */
   getTransactions(rentalId) {
     return [...this.transactions.values()].filter((t) => t.rentalId === rentalId);
-  }
-
-  /**
-   * Get all open reports.
-   * @return {Report[]}
-   */
-  getOpenReports() {
-    return [...this.reports.values()].filter((r) => r.isOpen());
   }
 
   // ═══════════════════════════════════════════════════════════════════════

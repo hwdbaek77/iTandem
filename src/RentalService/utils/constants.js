@@ -64,17 +64,7 @@ const OFFENSE_TYPES = Object.freeze({
 // ── Report Types ────────────────────────────────────────────────────────────
 const REPORT_TYPES = Object.freeze({
   BLOCKED_SPOT: 'blocked_spot',
-  DAMAGE: 'damage',
-  HARASSMENT: 'harassment',
-  SCAM: 'scam',
-});
-
-// ── Report Status ───────────────────────────────────────────────────────────
-const REPORT_STATUS = Object.freeze({
-  PENDING: 'pending',
-  INVESTIGATING: 'investigating',
-  RESOLVED: 'resolved',
-  DISMISSED: 'dismissed',
+  // Other report types removed (secondary/admin features)
 });
 
 // ── Grade Levels ────────────────────────────────────────────────────────────
@@ -117,7 +107,6 @@ module.exports = {
   TRANSACTION_STATUS,
   OFFENSE_TYPES,
   REPORT_TYPES,
-  REPORT_STATUS,
   GRADE_LEVELS,
   ACCOUNT_STATUS,
   PRICING,
