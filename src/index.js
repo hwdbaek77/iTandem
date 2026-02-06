@@ -1,9 +1,16 @@
 /**
- * iTandem Rental System — Public API
+ * iTandem — Public API
  *
  * Import everything from here:
- *   const { RentalService, ParkingSpot, ... } = require('./src');
+ *   const { RentalService, CarpoolService, ParkingSpot, ... } = require('./src');
+ *
+ * Or import individual modules:
+ *   const rental  = require('./src/RentalService');
+ *   const carpool = require('./src/CarpoolService');
  */
 
-// Re-export everything from RentalService module
-module.exports = require('./RentalService');
+// Re-export everything from both service modules
+module.exports = {
+  ...require('./RentalService'),
+  ...require('./CarpoolService'),
+};
