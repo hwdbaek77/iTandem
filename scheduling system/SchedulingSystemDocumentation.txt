@@ -1,0 +1,516 @@
+================================================================================
+  iTandem SCHEDULING COMPATIBILITY SYSTEM - Documentation
+  Harvard-Westlake School | 2025-2026
+  Author: Nathan You
+================================================================================
+
+
+PROJECT SUMMARY
+================================================================================
+
+The iTandem Scheduling Compatibility System determines how compatible two
+Harvard-Westlake students are for sharing a tandem parking spot. It does this
+by parsing student schedule PDFs exported from HW.com, mapping each student's
+courses onto the school's 6-day rotating bell schedule, and computing a
+weighted compatibility score (0-100) based on five factors:
+
+  1. Schedule Overlap       (35%) - How much class time do they share?
+  2. Arrival & Departure    (25%) - Does one leave before the other arrives?
+  3. Lunch Schedule         (15%) - Can they swap the spot during lunch?
+  4. Extracurriculars       (15%) - Do after-school activities create separation?
+  5. Grade Level            (10%) - Are they in a valid grade pairing?
+
+The system compares schedules day by day across all 6 rotation days, computes
+a compatibility percentage for each day, then averages them to produce a final
+score. A higher score means the two students can more effectively share one
+parking spot without conflicts.
+
+
+HOW IT WORKS (Pipeline)
+================================================================================
+
+  PDF File --> [pdfParser.js] --> Parsed Student Data
+                                       |
+                                       v
+  Bell Schedule Config ----------> [scheduleBuilder.js] --> Per-Day Presence Map
+  (bellSchedule.js)                                              |
+                                                                 v
+                                              [compatibilityAlgorithm.js]
+                                                      |
+                                                      v
+                                               Compatibility Score (0-100)
+                                               Per-Day Breakdown
+                                               Ranked Partner List
+
+  All orchestrated by: SchedulingSystem.js
+
+
+HOW TO RUN
+================================================================================
+
+  Compare two students from the command line:
+
+    node SchedulingSystem.js student1.pdf student2.pdf
+
+  With options:
+
+    node SchedulingSystem.js student1.pdf student2.pdf \
+      --co-curricular1 17:30 \
+      --co-curricular2 16:00 \
+      --verbose \
+      --schedules
+
+  Run the full test suite:
+
+    node test/runAllTests.js
+
+  Run a single test file:
+
+    node test/testBellSchedule.js
+
+
+DEPENDENCIES
+================================================================================
+
+  - Node.js (v18+ recommended)
+  - pdf-parse (npm package, v2.4.5) - for extracting text from PDF files
+  - No other external dependencies; all algorithm logic is vanilla JavaScript
+
+
+================================================================================
+  FILE-BY-FILE DOCUMENTATION
+================================================================================
+
+
+--------------------------------------------------------------------------------
+  bellSchedule.js - Bell Schedule Configuration & Time Utilities
+--------------------------------------------------------------------------------
+
+  PURPOSE:
+    Encodes the full Harvard-Westlake 6-day rotating bell schedule as a static
+    data structure. This is the foundation that all other modules reference to
+    convert block numbers (Block 1, Block 2, etc.) into actual clock times.
+    Also provides utility functions for time arithmetic used throughout the
+    system.
+
+  DATA STRUCTURE - BELL_SCHEDULE:
+    An object keyed by day number (1-6). Each day contains an ordered array of
+    time slots. Each slot has:
+      - slot:     Display name (e.g. "Block 1", "Lunch", "DS/OH")
+      - block:    The numbered block (1-7), or null for non-block slots
+      - type:     One of: "block", "seminar", "lunch", "break", "ds",
+                  "collab", "office_hours", "community"
+      - start:    Start time as "HH:MM" string
+      - end:      End time as "HH:MM" string
+      - startMin: Start time in minutes since midnight (pre-computed)
+      - endMin:   End time in minutes since midnight (pre-computed)
+
+    The schedule encodes HW-specific details:
+      - Day 3 starts with Faculty Collaboration (students don't attend)
+      - Days 1 and 5 have Directed Study/Office Hours at the end
+      - Days 1 and 5 have longer lunches (11:45-12:45 vs 11:15-12:15)
+      - Seminar slots vary by day (Junior on Day 1, Sophomore on Day 2,
+        Senior on Day 4, Community Time on Day 5, Office Hours on Day 6)
+      - Blocks rotate: not every block appears every day
+
+  EXPORTED FUNCTIONS:
+
+    timeToMinutes(timeStr)
+      Converts a "HH:MM" string to minutes since midnight.
+      Example: timeToMinutes("8:00") returns 480
+      Example: timeToMinutes("14:15") returns 855
+      Used extensively for time arithmetic (comparing arrival times,
+      computing overlap durations, etc.)
+
+    minutesToTime(minutes)
+      Converts minutes since midnight back to a "H:MM" string.
+      Example: minutesToTime(480) returns "8:00"
+      Example: minutesToTime(1050) returns "17:30"
+      Used for display/debugging output.
+
+    overlapMinutes(startA, endA, startB, endB)
+      Calculates how many minutes two time ranges overlap.
+      Returns 0 if they don't overlap at all.
+      Example: overlapMinutes(480, 600, 555, 675) returns 45
+        (8:00-10:00 overlaps with 9:15-11:15 by 45 minutes)
+      This is the core primitive used by the schedule overlap scorer.
+
+
+--------------------------------------------------------------------------------
+  pdfParser.js - PDF Schedule Parser
+--------------------------------------------------------------------------------
+
+  PURPOSE:
+    Reads a Harvard-Westlake student schedule PDF file and extracts structured
+    data from it. The parser targets the course table at the top of the PDF
+    (the rows with course codes, rooms, and schedule patterns), NOT the
+    rendered visual grid below it.
+
+  HOW IT WORKS:
+    1. Reads the PDF file from disk and extracts raw text using pdf-parse
+    2. Splits text into lines and searches for the header line to extract the
+       student's name and grade
+    3. Finds the course table (between "Course Title Room Schedule Teacher"
+       and "1st Semester")
+    4. Handles multi-line course titles by joining continuation lines back
+       onto their parent line (some course names wrap across 2-3 lines)
+    5. Parses each course line to extract: course code, title, room, schedule
+       pattern, block number, and teacher
+    6. Categorizes courses into: academic, co-curricular, directed study,
+       and seminar
+
+  SCHEDULE PATTERN FORMAT:
+    Each course has a 6-part dot-separated pattern indicating which block it
+    occupies on each of the 6 rotation days. Values:
+      - "x"   = no class that day
+      - "1-7" = the numbered block the course is in
+      - "CC"  = co-curricular (typically every day)
+      - "DS"  = directed study (typically Days 1 and 5)
+      - "M12" = midday seminar (typically Day 4 only)
+
+    Examples:
+      "x.6.x.6.x.6" = Block 6 on Days 2, 4, 6 (even-day course)
+      "1.x.1.x.1.x" = Block 1 on Days 1, 3, 5 (odd-day course)
+      "CC.CC.CC.CC.CC.CC" = Co-curricular every day
+      "DS.x.x.x.DS.x" = Directed Study on Days 1 and 5
+
+  EXPORTED FUNCTIONS:
+
+    parsePDF(filePath) [async]
+      Main entry point. Takes a file path to a student schedule PDF and
+      returns a structured object:
+        {
+          name: "YOU, NATHAN",
+          grade: 12,
+          courses: [...],          // academic courses (Blocks 1-7)
+          coCurriculars: [...],    // sports, activities (CC pattern)
+          directedStudies: [...],  // DS courses (DS pattern)
+          seminars: [...],         // senior/grade seminar (M12 pattern)
+          allCourses: [...]        // everything combined
+        }
+
+    parseHeader(lines)
+      Extracts student name and grade from the PDF header line.
+      Handles the HW format: "211-563 2/6/2026  12  YOU, NATHAN Grade: Student:"
+      Has a fallback regex for slightly different header formats.
+
+    parseSchedulePattern(pattern)
+      Parses a dot-separated pattern string into a per-day assignment map
+      and determines the course type (academic, co-curricular, etc.)
+
+    extractBlockFromPattern(pattern)
+      Returns the primary block identifier from a pattern.
+      For academic courses, this is the block number (1-7).
+      For special types, returns "CC", "DS", or "M12".
+
+    parseSingleCourseLine(line)
+      Parses one (possibly multi-line-joined) course row from the PDF.
+      Extracts course code, title, room, pattern, block, type, and teacher.
+
+    parseCourseTable(lines)
+      Finds the course table in the PDF text, joins multi-line entries,
+      and parses each course into a structured object.
+
+
+--------------------------------------------------------------------------------
+  scheduleBuilder.js - Schedule Builder (Course-to-Time Mapper)
+--------------------------------------------------------------------------------
+
+  PURPOSE:
+    Takes the parsed student data from pdfParser.js and the bell schedule
+    from bellSchedule.js, and produces a per-day campus presence map. This
+    tells you exactly when a student arrives, when they leave, which time
+    slots they occupy, and whether their lunch is free -- all of which feed
+    into the compatibility algorithm.
+
+  HOW IT WORKS:
+    For each of the 6 rotation days:
+    1. Looks up which blocks the student has courses in (from the parsed
+       course data and its dayAssignments)
+    2. Cross-references those block numbers against the bell schedule to
+       find the actual clock times
+    3. Determines if the student has directed study or seminar obligations
+       on that day
+    4. Classifies each time slot as "occupied", "free", "lunch", or "break"
+    5. Computes arrival time (start of first occupied slot), class end time
+       (end of last occupied slot), and departure time (class end, or
+       co-curricular end if they have one)
+    6. Determines lunch status: whether lunch falls between two occupied
+       slots (making it a true "free lunch" where they could leave campus)
+
+  KEY DECISIONS:
+    - Faculty Collaboration on Day 3 is treated as free (students don't
+      attend), so Day 3 arrival is when their first real class starts
+    - Seminar slots are only marked "occupied" if they match the student's
+      grade (e.g., a senior attends "Senior Seminar" on Day 4 but not
+      "Junior Seminar" on Day 1)
+    - Community Time and Office Hours are treated as free (optional)
+    - Co-curricular end time is user-provided since it varies by activity;
+      defaults to 17:00 (5:00 PM) if not specified
+    - Only seniors (grade 12) can leave campus for lunch
+
+  EXPORTED FUNCTIONS:
+
+    buildSchedule(parsedStudent, options)
+      Main entry point. Takes output from parsePDF() and optional config
+      (like co-curricular end time). Returns:
+        {
+          name: "YOU, NATHAN",
+          grade: 12,
+          days: {
+            1: { arrival, classEnd, departure, occupiedSlots, freeSlots,
+                 lunchFree, canLeaveLunch, hasCoCurricular, coCurricularEnd,
+                 slots },
+            2: { ... },
+            ...
+            6: { ... }
+          },
+          hasCoCurricular: true/false,
+          coCurricularEndMin: 1050,  // minutes since midnight
+          coCurricularName: "Water Polo - Varsity Boys"
+        }
+
+    buildDaySchedule(day, courses, grade, hasDS, hasSeminar, hasCoCurricular, coCurricularEndMin)
+      Builds the schedule for a single day. Called internally by
+      buildSchedule() for each day 1-6.
+
+    printSchedule(schedule)
+      Pretty-prints a built schedule to the console for debugging. Shows
+      arrival/departure times, occupied slots, free slots, and lunch status
+      for each day.
+
+
+--------------------------------------------------------------------------------
+  compatibilityAlgorithm.js - Compatibility Scoring Engine
+--------------------------------------------------------------------------------
+
+  PURPOSE:
+    The core of the system. Takes two built schedules and computes a 0-100
+    compatibility score using five weighted sub-scorers. This determines
+    how well two students can share a tandem parking spot.
+
+  SCORING WEIGHTS:
+    Schedule Overlap:       35 points (35%)
+    Arrival & Departure:    25 points (25%)
+    Lunch Schedule:         15 points (15%)
+    Extracurriculars:       15 points (15%)
+    Grade Level:            10 points (10%)
+    ----------------------------------------
+    Total:                 100 points
+
+  HOW SCORING WORKS:
+    1. Grade level is checked first. If the pairing is invalid (e.g.,
+       senior + sophomore), the score is immediately 0.
+    2. For each of the 6 rotation days, four sub-scores are computed
+       (everything except grade level, since that doesn't change by day).
+    3. Each day produces a score out of 90 (35 + 25 + 15 + 15).
+    4. The six day scores are averaged to get the day average (out of 90).
+    5. The grade level score (out of 10) is added to get the final score.
+
+    Formula:
+      dayAvg = (day1 + day2 + day3 + day4 + day5 + day6) / 6
+      finalScore = dayAvg + gradeScore
+
+  SUB-SCORER DETAILS:
+
+    scoreGradeLevel(gradeA, gradeB)  [10 points]
+      Checks if the grade pairing is valid for tandem:
+        - Senior + Senior = 10 points
+        - Junior + Junior = 10 points
+        - Junior + Sophomore = 10 points
+        - Sophomore + Sophomore = 10 points
+        - Any other combination = 0 points (incompatible)
+
+    scoreScheduleOverlap(dayA, dayB)  [35 points]
+      Measures how many minutes both students have class at the same time.
+      Less overlap = better (means the spot is only needed by one student
+      at a time). Computes pairwise overlap between all occupied slots.
+        - 0 overlap minutes = 35 points (perfect)
+        - Complete overlap = 0 points (worst)
+        - Formula: 35 * (1 - overlapMinutes / maxPossibleOverlap)
+
+    scoreArrivalDeparture(dayA, dayB)  [25 points]
+      Measures the stagger between the two students' campus presence.
+      Ideal case: one student's departure happens before the other's
+      arrival (positive gap = they never need the spot at the same time).
+        - gap = laterArrival - earlierDeparture
+        - Positive gap = good (one left before other came)
+        - Negative gap = bad (both on campus simultaneously)
+        - Normalized from [-600, +600] minutes to [0, 25] points
+
+    scoreLunchSchedule(dayA, dayB)  [15 points]
+      Evaluates lunch compatibility for the tandem spot:
+        - Both seniors with free lunch = 4.5 points (potential conflict,
+          both might want to leave campus and need the car)
+        - One has free lunch, other doesn't = 15 points (complementary,
+          one can use the spot while the other is in class)
+        - Neither has free lunch = 7.5 points (neutral)
+      Only seniors can leave campus for lunch at HW.
+
+    scoreExtracurriculars(dayA, dayB)  [15 points]
+      Measures separation in after-school departure times. If one student
+      leaves at 3:00 PM and the other stays until 5:30 PM for sports,
+      that creates a natural window for the spot handoff.
+        - 0 min difference = 0 points (no separation)
+        - 180+ min difference = 15 points (excellent separation)
+        - Formula: 15 * min(diffMinutes / 180, 1)
+
+  EXPORTED FUNCTIONS:
+
+    computeCompatibility(scheduleA, scheduleB)
+      Main entry point. Returns a detailed result object:
+        {
+          studentA, studentB,     // names
+          finalScore,             // 0-100
+          compatible,             // boolean
+          gradeScore,             // { score, compatible }
+          dayScores: {            // per-day breakdown
+            1: { total, overlap, arrivalDeparture, lunch, extracurricular },
+            ...
+          },
+          dayAverage              // average of 6 day scores
+        }
+
+    rankPartners(targetSchedule, allSchedules)
+      Given one student and an array of all students, computes compatibility
+      against every other student (skipping self), and returns a sorted list
+      from highest to lowest score.
+
+    printCompatibility(result)
+      Pretty-prints a full compatibility result with per-day, per-factor
+      breakdowns to the console.
+
+
+--------------------------------------------------------------------------------
+  SchedulingSystem.js - Main Entry Point / Orchestrator
+--------------------------------------------------------------------------------
+
+  PURPOSE:
+    Ties together all the modules into a single entry point. Provides both
+    a programmatic API (for use by other code) and a command-line interface
+    (for manual testing and ad-hoc comparisons).
+
+  PROGRAMMATIC API:
+
+    compareStudents(pdfPathA, pdfPathB, optionsA, optionsB) [async]
+      Parses two student PDFs, builds their schedules, and computes their
+      compatibility score. Returns the result along with both built
+      schedules. This is the simplest way to compare two students.
+
+      Example:
+        const { result } = await compareStudents(
+          "nathan.pdf",
+          "daniel.pdf",
+          { coCurricularEndTime: "17:30" },
+          {}
+        );
+        console.log(result.finalScore);  // e.g. 29.3
+
+    compareMultiple(students) [async]
+      Takes an array of student objects (each with a path and optional
+      options), parses all of them, and computes every pairwise
+      compatibility score. Returns all results sorted by score descending.
+      For N students, this produces N*(N-1)/2 comparisons.
+
+      Example:
+        const { results } = await compareMultiple([
+          { path: "nathan.pdf", options: { coCurricularEndTime: "17:30" } },
+          { path: "daniel.pdf" },
+          { path: "hannah.pdf" },
+        ]);
+        // results[0] is the highest-scoring pair
+
+  COMMAND-LINE INTERFACE:
+
+    node SchedulingSystem.js <pdf1> <pdf2> [options]
+
+    Options:
+      --co-curricular1 HH:MM   Set co-curricular end time for student 1
+      --co-curricular2 HH:MM   Set co-curricular end time for student 2
+      --verbose                 Show detailed per-day, per-factor breakdown
+      --schedules               Show each student's full day-by-day schedule
+
+    If run with fewer than 2 arguments, prints usage instructions.
+
+
+================================================================================
+  TEST SUITE
+================================================================================
+
+  Located in: test/
+
+  testBellSchedule.js     (305 tests)
+    - timeToMinutes conversion (midnight, morning, afternoon, edge cases)
+    - minutesToTime conversion and round-trip consistency
+    - overlapMinutes (no overlap, full, partial, contained, adjacent, zero-width)
+    - Bell schedule data integrity (6 days, correct slot counts, lunch/break
+      on every day, pre-computed minute values, chronological ordering)
+    - All 7 blocks appear across the week
+    - Day 3 late start (Faculty Collaboration first, Block 2 at 10:00)
+
+  testPdfParser.js        (98 tests)
+    - Header parsing (all 3 students, error on missing header)
+    - Schedule pattern parsing (academic, CC, DS, M12, error on invalid)
+    - Block extraction from patterns
+    - Single course line parsing (standard, multi-line, CC, DS, seminar, invalid)
+    - Course table parsing (mock data, multi-line continuation, error on missing)
+    - Full PDF parsing for Nathan, Daniel, and Hannah (course counts, block
+      coverage, specific course verification)
+
+  testScheduleBuilder.js  (63 tests)
+    - Full schedule student (all 7 blocks, arrival/departure/slot verification)
+    - Morning-only student (Blocks 1-2, early departure, free Block 3)
+    - Afternoon-only student (Block 3 only, late arrival, free Blocks 1-2)
+    - Athlete student (co-curricular extending departure, custom end time)
+    - Lunch status (senior can leave, junior/sophomore cannot, morning/afternoon
+      students have lunch marked differently)
+    - Directed study on correct days
+    - Seminar handling for seniors
+    - Slot counts and structure per day
+
+  testCompatibility.js    (62 tests)
+    - Weight configuration (sums to 100, individual values correct)
+    - Grade level scorer (all valid pairs, all invalid pairs)
+    - Schedule overlap scorer (no overlap, complete, partial, one empty)
+    - Arrival/departure scorer (perfect stagger, same schedule, one empty, CC)
+    - Lunch scorer (both free, one free, neither free, junior restriction)
+    - Extracurricular scorer (large separation, none, max, one empty)
+    - Full compatibility pipeline (different schedules, incompatible grades)
+    - Score range validation (identical schedules score low)
+    - Partner ranking (correct ordering, self excluded, best match identified)
+
+  testSchedules.js        (48 tests)
+    - End-to-end integration with real PDFs (Nathan, Daniel, Hannah)
+    - Full pipeline from PDF parsing through compatibility scoring
+    - Verifies sensible relative rankings between the three students
+
+  runAllTests.js
+    - Executes all 5 test files sequentially and reports overall pass/fail
+    - Total: 576 tests across all suites
+
+
+================================================================================
+  KNOWN LIMITATIONS & FUTURE WORK
+================================================================================
+
+  1. Co-curricular end times must be manually provided since they vary by
+     activity and are not in the PDF. A future UI would let students input
+     this themselves.
+
+  2. The system currently parses the 1st semester course table from PDFs.
+     A semester flag could be added to switch to 2nd semester when schedules
+     change (e.g., seasonal sports switch).
+
+  3. The Didax API is not yet available. When it becomes available, the PDF
+     parser can be replaced with an API client that returns the same
+     structured data format.
+
+  4. The three example students (Nathan, Daniel, Hannah) all have very full
+     schedules, so compatibility scores are low (22-29/100). The algorithm
+     will show much higher scores when comparing students with genuinely
+     different arrival/departure patterns (e.g., a student with only morning
+     classes paired with one who only has afternoon classes).
+
+  5. The Day 1-6 rotation is compared directly (Day 1 vs Day 1, etc.)
+     without mapping to actual calendar dates. This is sufficient for
+     tandem compatibility since the rotation repeats consistently.
