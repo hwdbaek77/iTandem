@@ -11,7 +11,7 @@ const CanvasService = require("../services/canvasService");
  */
 router.post("/signup", async (req, res) => {
   try {
-    const { email, password, name, phoneNumber, licensePlate, userType } = req.body;
+    const { email, password, name, phoneNumber, licensePlate } = req.body;
 
     // Validate required fields
     if (!email || !password || !name) {
@@ -35,7 +35,7 @@ router.post("/signup", async (req, res) => {
       email,
       licensePlate: licensePlate || null,
       phoneNumber: phoneNumber || null,
-      userType: userType || "STUDENT",
+      userType: "STUDENT", // SECURITY: Always default to STUDENT, never accept from request
       permissions: [],
       canvasAccessToken: null,
       canvasDataLinked: false,

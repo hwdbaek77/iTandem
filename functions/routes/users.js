@@ -92,44 +92,6 @@ router.put("/me", authenticate, async (req, res) => {
 });
 
 /**
- * GET /users/:userId
- * Get another user's public profile (for tandem/carpool matching)
- */
-router.get("/:userId", authenticate, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const db = admin.firestore();
-
-    const userDoc = await db.collection("users").doc(userId).get();
-
-    if (!userDoc.exists) {
-      return res.status(404).json({
-        error: "User not found",
-      });
-    }
-
-    const userData = userDoc.data();
-
-    // Return only public information
-    const publicProfile = {
-      userID: userData.userID,
-      name: userData.name,
-      userType: userData.userType,
-      // Don't include sensitive data like email, phone, license plate, tokens
-    };
-
-    res.json({
-      user: publicProfile,
-    });
-  } catch (error) {
-    console.error("Get user error:", error);
-    res.status(500).json({
-      error: "Failed to retrieve user",
-    });
-  }
-});
-
-/**
  * GET /users
  * List all users (admin only)
  */
@@ -168,6 +130,91 @@ router.get("/", authenticate, requireAdmin, async (req, res) => {
     console.error("List users error:", error);
     res.status(500).json({
       error: "Failed to retrieve users",
+    });
+  }
+});
+
+/**
+ * GET /users/:userId
+ * Get another user's public profile (for tandem/carpool matching)
+ */
+router.get("/:userId", authenticate, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const db = admin.firestore();
+
+    const userDoc = await db.collection("users").doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    const userData = userDoc.data();
+
+    // Return only public information
+    const publicProfile = {
+      userID: userData.userID,
+      name: userData.name,
+      userType: userData.userType,
+      // Don't include sensitive data like email, phone, license plate, tokens
+    };
+
+    res.json({
+      user: publicProfile,
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    res.status(500).json({
+      error: "Failed to retrieve user",
+    });
+  }
+});
+
+/**
+ * PUT /users/:userId/user-type
+ * Change a user's type (admin only)
+ * Prevents privilege escalation by requiring admin authentication
+ */
+router.put("/:userId/user-type", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { userType } = req.body;
+
+    // Validate userType
+    const validUserTypes = ["STUDENT", "FACULTY", "STAFF", "ADMIN"];
+    if (!userType || !validUserTypes.includes(userType)) {
+      return res.status(400).json({
+        error: `Invalid userType. Must be one of: ${validUserTypes.join(", ")}`,
+      });
+    }
+
+    const db = admin.firestore();
+    const userDoc = await db.collection("users").doc(userId).get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({
+        error: "User not found",
+      });
+    }
+
+    // Update user type
+    await db.collection("users").doc(userId).update({
+      userType,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.json({
+      message: "User type updated successfully",
+      userId,
+      userType,
+    });
+  } catch (error) {
+    console.error("Update user type error:", error);
+    res.status(500).json({
+      error: "Failed to update user type",
+      details: error.message,
     });
   }
 });
