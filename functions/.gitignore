@@ -1,0 +1,18 @@
+# Environment Variables - CRITICAL: Never commit these!
+.env
+.env.local
+.env.*.local
+
+# Service Account Keys
+serviceAccountKey*.json
+firebase-adminsdk*.json
+*-credentials.json
+
+# Dependencies
+node_modules/
+
+# Build
+lib/
+
+# Logs
+*.log
