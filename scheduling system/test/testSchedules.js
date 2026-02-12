@@ -2,10 +2,9 @@
  * testSchedules.js
  * 
  * Integration test for the iTandem Scheduling Compatibility System.
- * Tests the full pipeline using three real HW student schedule PDFs:
+ * Tests the full pipeline using two real HW student schedule PDFs:
  *   - Nathan You (Grade 12, Water Polo co-curricular)
  *   - Daniel Baek (Grade 12, no co-curricular listed)
- *   - Hannah Levy (Grade 12, Yoga directed study, no co-curricular)
  * 
  * Run: node test/testSchedules.js
  */
@@ -24,9 +23,8 @@ const { minutesToTime } = require("../bellSchedule");
 // ── Test PDF Paths ──────────────────────────────────────────────────────────
 
 const PDF_PATHS = {
-  nathan: "/Users/nathanyou/Downloads/StudentSchedule02062026.pdf",
-  daniel: "/Users/nathanyou/Library/Messages/Attachments/01/01/29F96F3A-7BB6-44F6-80A9-45156A458782/StudentSchedule02062026.pdf",
-  hannah: "/Users/nathanyou/Downloads/StudentSchedule02062026 (1).pdf",
+  nathan: path.join(__dirname, "schedule_nathan.pdf"),
+  daniel: path.join(__dirname, "schedule_daniel.pdf"),
 };
 
 // ── Test Helpers ────────────────────────────────────────────────────────────
@@ -69,19 +67,13 @@ async function testPDFParser() {
   assert(daniel.courses.length === 6, `Daniel academic courses: ${daniel.courses.length}`);
   assert(daniel.coCurriculars.length === 0, `Daniel co-curriculars: ${daniel.coCurriculars.length}`);
 
-  const hannah = await parsePDF(PDF_PATHS.hannah);
-  assert(hannah.name === "LEVY, HANNAH", `Hannah name: "${hannah.name}"`);
-  assert(hannah.grade === 12, `Hannah grade: ${hannah.grade}`);
-  assert(hannah.courses.length === 7, `Hannah academic courses: ${hannah.courses.length}`);
-  assert(hannah.directedStudies.length === 3, `Hannah directed studies: ${hannah.directedStudies.length}`);
-
   // Verify block assignments
   const nathanCS = nathan.courses.find((c) => c.title.includes("Computer Science"));
   assert(nathanCS !== undefined, "Nathan has CS course");
   assert(nathanCS.block === 5, `Nathan CS block: ${nathanCS.block}`);
   assert(nathanCS.pattern === "x.5.x.5.x.5", `Nathan CS pattern: ${nathanCS.pattern}`);
 
-  return { nathan, daniel, hannah };
+  return { nathan, daniel };
 }
 
 async function testScheduleBuilder(parsed) {
@@ -89,7 +81,6 @@ async function testScheduleBuilder(parsed) {
 
   const nathanSched = buildSchedule(parsed.nathan, { coCurricularEndTime: "17:30" });
   const danielSched = buildSchedule(parsed.daniel);
-  const hannahSched = buildSchedule(parsed.hannah);
 
   // Nathan: should have co-curricular extending departure
   assert(nathanSched.hasCoCurricular === true, "Nathan has co-curricular");
@@ -109,43 +100,23 @@ async function testScheduleBuilder(parsed) {
   // Daniel: no co-curricular
   assert(danielSched.hasCoCurricular === false, "Daniel has no co-curricular");
 
-  // Hannah Day 1: has DS on Days 1 and 5
-  assert(hannahSched.days[1].occupiedSlots.includes("DS/OH"), "Hannah has DS on Day 1");
-  assert(hannahSched.days[5].occupiedSlots.includes("DS/OH"), "Hannah has DS on Day 5");
-
-  // All three have lunch free as seniors
+  // Both seniors can leave for lunch
   assert(nathanSched.days[1].canLeaveLunch === true, "Nathan can leave for lunch (senior)");
   assert(danielSched.days[1].canLeaveLunch === true, "Daniel can leave for lunch (senior)");
-  assert(hannahSched.days[1].canLeaveLunch === true, "Hannah can leave for lunch (senior)");
 
-  return { nathanSched, danielSched, hannahSched };
+  return { nathanSched, danielSched };
 }
 
 async function testCompatibilityAlgorithm(schedules) {
   section("TEST 3: Compatibility Algorithm");
 
-  const { nathanSched, danielSched, hannahSched } = schedules;
+  const { nathanSched, danielSched } = schedules;
 
-  // All pairs should be compatible (all grade 12)
+  // Nathan-Daniel should be compatible (both grade 12)
   const nd = computeCompatibility(nathanSched, danielSched);
   assert(nd.compatible === true, "Nathan-Daniel: compatible (both seniors)");
   assert(nd.gradeScore.score === WEIGHTS.gradeLevel, `Nathan-Daniel grade score: ${nd.gradeScore.score}/${WEIGHTS.gradeLevel}`);
   assert(nd.finalScore >= 0 && nd.finalScore <= 100, `Nathan-Daniel score in range: ${nd.finalScore}`);
-
-  const nh = computeCompatibility(nathanSched, hannahSched);
-  assert(nh.compatible === true, "Nathan-Hannah: compatible");
-  assert(nh.finalScore >= 0 && nh.finalScore <= 100, `Nathan-Hannah score in range: ${nh.finalScore}`);
-
-  const dh = computeCompatibility(danielSched, hannahSched);
-  assert(dh.compatible === true, "Daniel-Hannah: compatible");
-  assert(dh.finalScore >= 0 && dh.finalScore <= 100, `Daniel-Hannah score in range: ${dh.finalScore}`);
-
-  // Nathan vs Daniel should score higher than Daniel vs Hannah
-  // because Nathan has co-curricular (stays late) creating separation
-  assert(
-    nd.finalScore > dh.finalScore,
-    `Nathan-Daniel (${nd.finalScore}) > Daniel-Hannah (${dh.finalScore}) due to Nathan's co-curricular separation`
-  );
 
   // Per-day scores should sum to the day total
   for (let day = 1; day <= 6; day++) {
@@ -170,22 +141,18 @@ async function testCompatibilityAlgorithm(schedules) {
     `Final score = day avg + grade: ${nd.finalScore}`
   );
 
-  return { nd, nh, dh };
+  return { nd };
 }
 
 async function testRanking(schedules) {
   section("TEST 4: Partner Ranking");
 
-  const { nathanSched, danielSched, hannahSched } = schedules;
+  const { nathanSched, danielSched } = schedules;
 
-  const allSchedules = [nathanSched, danielSched, hannahSched];
+  const allSchedules = [nathanSched, danielSched];
   const nathanRanking = rankPartners(nathanSched, allSchedules);
 
-  assert(nathanRanking.length === 2, `Nathan has 2 potential partners: ${nathanRanking.length}`);
-  assert(
-    nathanRanking[0].finalScore >= nathanRanking[1].finalScore,
-    `Rankings sorted descending: ${nathanRanking[0].finalScore} >= ${nathanRanking[1].finalScore}`
-  );
+  assert(nathanRanking.length === 1, `Nathan has 1 potential partner: ${nathanRanking.length}`);
 
   console.log("\n  Nathan's ranked partners:");
   for (const r of nathanRanking) {
@@ -199,12 +166,9 @@ async function testPrintOutputs(parsed, schedules, results) {
   console.log("\n  === SCHEDULE DETAILS ===");
   printSchedule(schedules.nathanSched);
   printSchedule(schedules.danielSched);
-  printSchedule(schedules.hannahSched);
 
   console.log("\n  === COMPATIBILITY DETAILS ===");
   printCompatibility(results.nd);
-  printCompatibility(results.nh);
-  printCompatibility(results.dh);
 }
 
 // ── Run All Tests ───────────────────────────────────────────────────────────

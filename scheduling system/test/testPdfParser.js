@@ -43,10 +43,10 @@ function section(title) {
 
 // ── Test PDF Paths ──────────────────────────────────────────────────────────
 
+const path = require("path");
 const PDF_PATHS = {
-  nathan: "/Users/nathanyou/Downloads/StudentSchedule02062026.pdf",
-  daniel: "/Users/nathanyou/Library/Messages/Attachments/01/01/29F96F3A-7BB6-44F6-80A9-45156A458782/StudentSchedule02062026.pdf",
-  hannah: "/Users/nathanyou/Downloads/StudentSchedule02062026 (1).pdf",
+  nathan: path.join(__dirname, "schedule_nathan.pdf"),
+  daniel: path.join(__dirname, "schedule_daniel.pdf"),
 };
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ function testParseHeader() {
   const lines1 = [
     "Harvard-Westlake School",
     "2025-2026 Student Schedule",
-    "211-563 2/6/2026\t12\tYOU, NATHAN Grade:\tStudent:",
+    "211-563 2/12/2026\t12\tYOU, NATHAN Grade:\tStudent:",
     "Dean(s): Erik DeAngelis",
   ];
   const h1 = parseHeader(lines1);
@@ -74,16 +74,6 @@ function testParseHeader() {
   const h2 = parseHeader(lines2);
   assertEq(h2.name, "BAEK, DANIEL JINWOO", "Daniel header name");
   assertEq(h2.grade, 12, "Daniel header grade");
-
-  // Hannah
-  const lines3 = [
-    "Harvard-Westlake School",
-    "2025-2026 Student Schedule",
-    "208-705 2/6/2026\t12\tLEVY, HANNAH Grade:\tStudent:",
-  ];
-  const h3 = parseHeader(lines3);
-  assertEq(h3.name, "LEVY, HANNAH", "Hannah header name");
-  assertEq(h3.grade, 12, "Hannah header grade");
 
   // Error case: no header
   try {
@@ -212,7 +202,7 @@ function testParseCourseTable() {
   const lines = [
     "Harvard-Westlake School",
     "2025-2026 Student Schedule",
-    "211-563 2/6/2026\t12\tYOU, NATHAN Grade:\tStudent:",
+    "211-563 2/12/2026\t12\tYOU, NATHAN Grade:\tStudent:",
     "Dean(s): Erik DeAngelis",
     "Counselor: Kat Scardino",
     "Course Title Room Schedule Teacher",
@@ -298,18 +288,7 @@ async function testFullPDFParsing() {
   assert(danielBlocks.has(1) && danielBlocks.has(2) && danielBlocks.has(3), "Daniel has Blocks 1-3");
   assert(danielBlocks.has(4) && danielBlocks.has(5) && danielBlocks.has(6), "Daniel has Blocks 4-6");
 
-  section("Full PDF Parsing - Hannah");
-
-  const hannah = await parsePDF(PDF_PATHS.hannah);
-  assertEq(hannah.name, "LEVY, HANNAH", "Name");
-  assertEq(hannah.grade, 12, "Grade");
-  assertEq(hannah.courses.length, 7, "7 academic courses");
-  assertEq(hannah.directedStudies.length, 3, "3 directed study entries (3 trimesters of Yoga)");
-
-  // All 3 directed studies should have the same DS pattern
-  for (const ds of hannah.directedStudies) {
-    assertEq(ds.pattern, "DS.x.x.x.DS.x", `DS pattern: ${ds.title}`);
-  }
+  // Hannah tests removed — PDF no longer available
 }
 
 // ── Run All ─────────────────────────────────────────────────────────────────
