@@ -1,0 +1,12 @@
+const Permission = Object.freeze({
+  VIEW_SPOTS: 'VIEW_SPOTS',
+  RENT_SPOT: 'RENT_SPOT',
+  LIST_SPOT: 'LIST_SPOT',
+  JOIN_CARPOOL: 'JOIN_CARPOOL',
+  JOIN_TANDEM: 'JOIN_TANDEM',
+  SEND_MESSAGES: 'SEND_MESSAGES',
+  FILE_REPORT: 'FILE_REPORT',
+  ADMIN: 'ADMIN',
+});
+
+module.exports = Permission;
