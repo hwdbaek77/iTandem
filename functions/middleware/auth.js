@@ -98,25 +98,33 @@ const verifyApiKey = async (req, res, next) => {
 
 /**
  * Middleware to check if user has admin permissions
+ * Checks the admins collection for active admin status
  */
 const requireAdmin = async (req, res, next) => {
   try {
     const db = admin.firestore();
-    const userDoc = await db.collection("users").doc(req.userId).get();
+    
+    // Check if user exists in admins collection
+    const adminDoc = await db.collection("admins").doc(req.userId).get();
 
-    if (!userDoc.exists) {
-      return res.status(404).json({
-        error: "User not found",
-      });
-    }
-
-    const userData = userDoc.data();
-
-    if (userData.userType !== "ADMIN") {
+    if (!adminDoc.exists) {
       return res.status(403).json({
         error: "Forbidden - Admin access required",
       });
     }
+
+    const adminData = adminDoc.data();
+
+    // Check if admin is active
+    if (!adminData.active) {
+      return res.status(403).json({
+        error: "Forbidden - Admin account is inactive",
+      });
+    }
+
+    // Attach admin info to request
+    req.admin = adminData;
+    req.adminRole = adminData.role;
 
     next();
   } catch (error) {
