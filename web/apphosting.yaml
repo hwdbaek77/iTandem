@@ -1,0 +1,23 @@
+# Firebase App Hosting config for the Next.js web app.
+# See https://firebase.google.com/docs/app-hosting/configure
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 100
+  memoryMiB: 512
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyAdMbd6CjU_S7Joaw3bSM08pHsPJ6miq94
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: itandem-api.firebaseapp.com
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: itandem-api
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: itandem-api.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "954488814160"
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:954488814160:web:18f5bf2a958bb7ce0b98c5
+  - variable: NEXT_PUBLIC_API_URL
+    value: https://us-central1-itandem-api.cloudfunctions.net/apiv2

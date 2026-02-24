@@ -30,6 +30,9 @@ const canvasRoutes = require("./routes/canvas");
 const healthRoutes = require("./routes/health");
 const adminAuthRoutes = require("./routes/admin-auth");
 const adminPanelRoutes = require("./routes/admin-panel");
+const scheduleRoutes = require("./routes/schedules");
+const spotRoutes = require("./routes/spots");
+const rentalRoutes = require("./routes/rentals");
 
 // Use routes
 app.use("/auth", authRoutes);
@@ -38,6 +41,9 @@ app.use("/canvas", canvasRoutes);
 app.use("/health", healthRoutes);
 app.use("/admin-auth", adminAuthRoutes);
 app.use("/admin-panel", adminPanelRoutes);
+app.use("/schedules", scheduleRoutes);
+app.use("/spots", spotRoutes);
+app.use("/rentals", rentalRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -52,6 +58,9 @@ app.get("/", (req, res) => {
       health: "/health - Platform health checks",
       adminAuth: "/admin-auth - Admin panel authentication",
       adminPanel: "/admin-panel - Admin panel operations",
+      schedules: "/schedules - Schedule upload, parsing, and compatibility",
+      spots: "/spots - Public parking spot browsing",
+      rentals: "/rentals - Rental creation and management",
     },
     documentation: "See API_ROUTES.md for full endpoint details",
   });
