@@ -1,15 +1,6 @@
-import Link from "next/link";
 import AppShell from "../../components/AppShell";
 import Link from "next/link";
 import { lots } from "../../lib/mockParking";
-
-const MVP_LOTS = [
-  { name: "Taper Lot", slug: "taper" },
-  { name: "Coldwater Lot", slug: "coldwater" },
-  { name: "Hacienda Lot", slug: "hacienda" },
-  { name: "St Michael Lot", slug: "st-michael" },
-  { name: "Hamilton Lot", slug: "hamilton" },
-];
 
 export default function ParkingPage() {
   return (

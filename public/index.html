@@ -3,411 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>iTandem - Authentication & Testing Dashboard</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
-        }
-
-        .header h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .card h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: 500;
-        }
-
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 6px;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn-secondary {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .btn-success {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        }
-
-        .status {
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-            font-size: 14px;
-        }
-
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        .health-status {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            background: #f8f9fa;
-        }
-
-        .health-status.healthy {
-            border-left: 4px solid #28a745;
-        }
-
-        .health-status.unhealthy {
-            border-left: 4px solid #dc3545;
-        }
-
-        .health-status.warning {
-            border-left: 4px solid #ffc107;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .badge.healthy {
-            background: #28a745;
-            color: white;
-        }
-
-        .badge.unhealthy {
-            background: #dc3545;
-            color: white;
-        }
-
-        .badge.warning {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-top: 15px;
-        }
-
-        .stat-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .stat-label {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
-
-        .user-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-        }
-
-        .user-info h3 {
-            margin-bottom: 10px;
-            color: #667eea;
-        }
-
-        .user-info p {
-            margin: 5px 0;
-            color: #333;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        code {
-            background: #f4f4f4;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
-        }
-
-        .api-key-display {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-            padding: 15px;
-            border-radius: 6px;
-            margin-top: 15px;
-            word-break: break-all;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
-
-        .loading::after {
-            content: '...';
-            animation: dots 1.5s infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-    </style>
+    <title>iTandem Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🚗 iTandem</h1>
-            <p>Authentication & Platform Testing Dashboard</p>
+<body class="bg-gradient-to-br from-purple-600 to-blue-600 min-h-screen flex items-center justify-center">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-12">
+            <h1 class="text-6xl font-bold text-white mb-4">🚗 iTandem</h1>
+            <p class="text-2xl text-purple-100">Harvard-Westlake Parking & Carpool Platform</p>
         </div>
 
-        <!-- Not Authenticated View -->
-        <div id="notAuthenticatedView">
-            <div class="dashboard">
-                <!-- Sign Up Card -->
-                <div class="card">
-                    <h2>Create Account</h2>
-                    <form id="signupForm">
-                        <div class="form-group">
-                            <label>Name *</label>
-                            <input type="text" id="signupName" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Email *</label>
-                            <input type="email" id="signupEmail" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Password *</label>
-                            <input type="password" id="signupPassword" required minlength="6">
-                        </div>
-                        <div class="form-group">
-                            <label>Phone Number</label>
-                            <input type="tel" id="signupPhone">
-                        </div>
-                        <div class="form-group">
-                            <label>License Plate</label>
-                            <input type="text" id="signupLicense">
-                        </div>
-                        <button type="submit">Sign Up</button>
-                    </form>
-                    <div id="signupStatus"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <!-- Admin Panel Card -->
+            <div class="bg-white rounded-2xl shadow-2xl p-8 transform hover:scale-105 transition-transform">
+                <div class="text-center mb-6">
+                    <div class="text-6xl mb-4">🔐</div>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Admin Panel</h2>
+                    <p class="text-gray-600">Manage users, spots, and system settings</p>
                 </div>
+                <ul class="text-gray-700 space-y-2 mb-6">
+                    <li>✓ User Management</li>
+                    <li>✓ Parking Spot Control</li>
+                    <li>✓ Tandem & Carpool Oversight</li>
+                    <li>✓ System Analytics</li>
+                    <li>✓ App Control (Freeze/Unfreeze)</li>
+                </ul>
+                <a href="/admin.html" 
+                   class="block w-full bg-purple-600 text-white text-center py-3 rounded-lg hover:bg-purple-700 transition font-semibold">
+                    Access Admin Panel →
+                </a>
+            </div>
 
-                <!-- Login Card -->
-                <div class="card">
-                    <h2>Login</h2>
-                    <form id="loginForm">
-                        <div class="form-group">
-                            <label>Email *</label>
-                            <input type="email" id="loginEmail" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Password *</label>
-                            <input type="password" id="loginPassword" required>
-                        </div>
-                        <button type="submit">Login</button>
-                    </form>
-                    <div id="loginStatus"></div>
+            <!-- API Testing Card -->
+            <div class="bg-white rounded-2xl shadow-2xl p-8 transform hover:scale-105 transition-transform">
+                <div class="text-center mb-6">
+                    <div class="text-6xl mb-4">⚙️</div>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">API Testing</h2>
+                    <p class="text-gray-600">Test and monitor API endpoints</p>
                 </div>
+                <ul class="text-gray-700 space-y-2 mb-6">
+                    <li>✓ User Authentication</li>
+                    <li>✓ Canvas LMS Integration</li>
+                    <li>✓ API Key Management</li>
+                    <li>✓ Health Monitoring</li>
+                    <li>✓ Platform Statistics</li>
+                </ul>
+                <a href="/test.html" 
+                   class="block w-full bg-blue-600 text-white text-center py-3 rounded-lg hover:bg-blue-700 transition font-semibold">
+                    Access API Dashboard →
+                </a>
+            </div>
+        </div>
 
-                <!-- Platform Health Card -->
-                <div class="card">
-                    <h2>Platform Health</h2>
-                    <button onclick="checkHealth()" class="btn-success">Check Health</button>
-                    <div id="healthStatus"></div>
+        <div class="mt-12 text-center">
+            <div class="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-6 max-w-2xl mx-auto">
+                <h3 class="text-white font-bold text-xl mb-3">System Status</h3>
+                <div class="grid grid-cols-2 gap-4 text-white">
+                    <div>
+                        <div class="text-3xl font-bold">✅</div>
+                        <div class="text-sm">API Online</div>
+                    </div>
+                    <div>
+                        <div class="text-3xl font-bold">v2.0</div>
+                        <div class="text-sm">Functions v2</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- Authenticated View -->
-        <div id="authenticatedView" class="hidden">
-            <div class="dashboard">
-                <!-- User Profile Card -->
-                <div class="card">
-                    <h2>Your Profile</h2>
-                    <div id="userProfile"></div>
-                    <button onclick="logout()" class="btn-secondary" style="margin-top: 15px;">Logout</button>
-                </div>
-
-                <!-- Canvas Integration Card -->
-                <div class="card">
-                    <h2>Canvas LMS Integration</h2>
-                    <div id="canvasStatus"></div>
-                    <form id="canvasForm" class="hidden">
-                        <div class="form-group">
-                            <label>Canvas Access Token *</label>
-                            <input type="text" id="canvasToken" required placeholder="Enter your Canvas API token">
-                            <small style="color: #666; display: block; margin-top: 5px;">
-                                Get your token from Canvas → Account → Settings → New Access Token
-                            </small>
-                        </div>
-                        <button type="submit">Link Canvas Account</button>
-                    </form>
-                    <div id="canvasLinkStatus"></div>
-                    <button id="refreshCanvasBtn" onclick="refreshCanvasData()" class="btn-success hidden" style="margin-top: 10px;">
-                        Refresh Canvas Data
-                    </button>
-                </div>
-
-                <!-- API Key Management Card -->
-                <div class="card">
-                    <h2>API Key for Mobile App</h2>
-                    <p style="margin-bottom: 15px; color: #666;">
-                        Generate an API key to authenticate your mobile app requests.
-                    </p>
-                    <button onclick="generateApiKey()">Generate New API Key</button>
-                    <div id="apiKeyStatus"></div>
-                    <button onclick="loadApiKeys()" class="btn-secondary" style="margin-top: 10px;">View My API Keys</button>
-                    <div id="apiKeysList"></div>
-                </div>
-
-                <!-- Canvas Data Card -->
-                <div class="card">
-                    <h2>Canvas Data</h2>
-                    <button onclick="viewCanvasCourses()" class="btn-success">View My Courses</button>
-                    <button onclick="viewCanvasSchedule()" class="btn-success" style="margin-top: 10px;">View Schedule</button>
-                    <div id="canvasDataDisplay"></div>
-                </div>
-
-                <!-- Platform Stats Card -->
-                <div class="card">
-                    <h2>Platform Statistics</h2>
-                    <button onclick="loadPlatformStats()" class="btn-success">Load Stats</button>
-                    <div id="platformStats"></div>
-                </div>
-
-                <!-- Health Monitoring Card -->
-                <div class="card">
-                    <h2>System Health</h2>
-                    <button onclick="checkDetailedHealth()" class="btn-success">Detailed Health Check</button>
-                    <div id="detailedHealthStatus"></div>
-                </div>
-            </div>
-        </div>
+        <footer class="mt-12 text-center text-purple-100">
+            <p>© 2026 Harvard-Westlake iTandem Project</p>
+            <p class="text-sm mt-2">Node.js 22 • Firebase Functions v2 • Firestore</p>
+        </footer>
     </div>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-
-    <script src="app.js"></script>
 </body>
 </html>

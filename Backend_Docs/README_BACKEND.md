@@ -13,7 +13,8 @@ iTandem is a Harvard-Westlake parking management and carpool matching platform. 
 - **Firebase Authentication**: User authentication and authorization
 - **Firestore**: NoSQL database for storing users, parking spots, tandems, carpools, and rentals
 - **Canvas LMS API**: Integration for fetching student schedules and course data
-- **Node.js 18**: Runtime environment
+- **Node.js 22**: Runtime environment
+- **Firebase Functions v2**: Second-generation Cloud Functions
 
 ### Key Features
 
@@ -21,19 +22,32 @@ iTandem is a Harvard-Westlake parking management and carpool matching platform. 
    - Email/password signup and login via Firebase Auth
    - API key generation for mobile app access
    - Dual authentication: Firebase ID tokens or API keys
+   - **Separate Admin Authentication** for admin panel access
 
-2. **Canvas LMS Integration**
+2. **Admin Panel** (NEW)
+   - Professional web-based administrative interface at `/admin.html`
+   - Comprehensive user management (search, edit, ban/unban, delete)
+   - Parking spot management (create, edit, delete)
+   - Tandem/carpool monitoring and management
+   - Rental transaction tracking
+   - Reports & disputes handling
+   - System control (freeze/unfreeze app for maintenance)
+   - Real-time analytics dashboard
+   - Role-based access control (SUPER_ADMIN, OPERATIONS_ADMIN, CONTENT_ADMIN)
+
+3. **Canvas LMS Integration**
    - Store user Canvas access tokens securely
    - Fetch comprehensive user data (courses, schedule, assignments, enrollments)
    - Extract schedule information for tandem/carpool compatibility matching
    - Automatic data refresh capability
 
-3. **User Management**
+4. **User Management**
    - Profile CRUD operations
    - Permission-based access control
    - Admin and student user types
+   - Account status management (active, suspended, banned)
 
-4. **Health Monitoring**
+5. **Health Monitoring**
    - Platform health checks
    - Database connectivity verification
    - Platform statistics and metrics
@@ -63,7 +77,9 @@ iTandem/
 │       └── Permission.js          # Permission enum
 ├── public/                         # Test web interface
 │   ├── index.html                 # Dashboard UI
-│   └── app.js                     # Frontend JavaScript
+│   ├── app.js                     # Frontend JavaScript
+│   ├── admin.html                 # Admin panel UI (NEW)
+│   └── admin-panel.js             # Admin panel JavaScript (NEW)
 ├── firebase.json                   # Firebase configuration
 ├── .firebaserc                     # Firebase project config
 ├── firestore.rules                 # Firestore security rules

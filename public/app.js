@@ -1,22 +1,21 @@
 // Firebase Configuration
-// TODO: Replace with your actual Firebase config from Firebase Console
 const firebaseConfig = {
-    apiKey: "YOUR_FIREBASE_API_KEY",
-    authDomain: "YOUR_PROJECT.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAAhoJ5rnC4q9XKwrvoldp39stRs0bBvew",
+    authDomain: "itandem-api.firebaseapp.com",
+    projectId: "itandem-api",
+    storageBucket: "itandem-api.firebasestorage.app",
+    messagingSenderId: "954488814160",
+    appId: "1:954488814160:web:18f5bf2a958bb7ce0b98c5"
 };
 
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
-// API Base URL - adjust for local development vs production
+// API Base URL
 const API_BASE_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:5001/itandem-firebase/us-central1/api'
-    : '/api';
+    ? 'http://localhost:5001/itandem-api/us-central1/apiv2'
+    : 'https://us-central1-itandem-api.cloudfunctions.net/apiv2';
 
 // Global state
 let currentUser = null;
