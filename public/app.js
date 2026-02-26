@@ -1,6 +1,7 @@
 // Initialize Firebase using shared config from firebase-config.js
 firebase.initializeApp(FIREBASE_CONFIG);
 const auth = firebase.auth();
+const db = firebase.firestore();
 
 // API Base URL
 const API_BASE_URL = window.location.hostname === 'localhost' 
@@ -10,6 +11,12 @@ const API_BASE_URL = window.location.hostname === 'localhost'
 // Global state
 let currentUser = null;
 let authToken = null;
+let currentUserName = null;
+
+// Messaging state
+let currentConversationId = null;
+let messagesUnsubscribe = null;
+let conversationsUnsubscribe = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -20,9 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
             showAuthenticatedView();
             loadUserProfile();
             checkCanvasStatus();
+            initMessaging();
         } else {
             currentUser = null;
             authToken = null;
+            currentUserName = null;
+            cleanupMessaging();
             showNotAuthenticatedView();
         }
     });
@@ -124,6 +134,7 @@ async function handleLogin(e) {
 
 async function logout() {
     try {
+        cleanupMessaging();
         await auth.signOut();
         location.reload();
     } catch (error) {
@@ -147,6 +158,7 @@ async function loadUserProfile() {
         
         const data = await response.json();
         const user = data.user;
+        currentUserName = user.name || currentUser.email;
         
         document.getElementById('userProfile').innerHTML = `
             <div class="user-info">
@@ -563,4 +575,226 @@ async function loadPlatformStats() {
         console.error('Stats load error:', error);
         statsDiv.innerHTML = `<div class="status error">Failed to load statistics: ${error.message}</div>`;
     }
+}
+
+// ─────────────────────────────────────────────
+// Messaging (Firestore real-time)
+// ─────────────────────────────────────────────
+
+function cleanupMessaging() {
+    if (messagesUnsubscribe) { messagesUnsubscribe(); messagesUnsubscribe = null; }
+    if (conversationsUnsubscribe) { conversationsUnsubscribe(); conversationsUnsubscribe = null; }
+    currentConversationId = null;
+}
+
+function initMessaging() {
+    cleanupMessaging();
+    loadConversations();
+}
+
+function loadConversations() {
+    const listEl = document.getElementById('conversationList');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="loading">Loading</div>';
+
+    // No orderBy here — that would require a composite Firestore index.
+    // We sort client-side by lastMessageAt instead.
+    conversationsUnsubscribe = db.collection('conversations')
+        .where('participants', 'array-contains', currentUser.uid)
+        .onSnapshot((snapshot) => {
+            if (snapshot.empty) {
+                listEl.innerHTML = '<p style="color:#bbb;font-size:13px;">No conversations yet</p>';
+                return;
+            }
+
+            // Sort by lastMessageAt descending client-side
+            const docs = snapshot.docs.slice().sort((a, b) => {
+                const aTime = a.data().lastMessageAt ? a.data().lastMessageAt.toMillis() : 0;
+                const bTime = b.data().lastMessageAt ? b.data().lastMessageAt.toMillis() : 0;
+                return bTime - aTime;
+            });
+
+            listEl.innerHTML = '';
+            docs.forEach(doc => {
+                const conv = doc.data();
+                const otherUid = conv.participants.find(p => p !== currentUser.uid);
+                const otherName = (conv.participantNames && conv.participantNames[otherUid]) || 'Unknown';
+
+                const item = document.createElement('div');
+                item.className = `conversation-item${doc.id === currentConversationId ? ' active' : ''}`;
+                item.dataset.convId = doc.id;
+                item.innerHTML = `
+                    <div class="conv-name">${escapeHtml(otherName)}</div>
+                    <div class="conv-preview">${escapeHtml(conv.lastMessage || 'No messages yet')}</div>
+                `;
+                item.addEventListener('click', () => openConversation(doc.id, otherName));
+                listEl.appendChild(item);
+            });
+        }, (err) => {
+            console.error('Conversations listener error:', err);
+            if (listEl) listEl.innerHTML = '<div class="status error">Failed to load conversations</div>';
+        });
+}
+
+async function findUserByEmail(email) {
+    const snapshot = await db.collection('users')
+        .where('email', '==', email)
+        .limit(1)
+        .get();
+    if (snapshot.empty) return null;
+    const doc = snapshot.docs[0];
+    return { uid: doc.id, ...doc.data() };
+}
+
+async function startNewConversation() {
+    const emailInput = document.getElementById('newChatEmail');
+    const statusEl = document.getElementById('newChatStatus');
+    const email = emailInput.value.trim().toLowerCase();
+
+    if (!email) return;
+    if (email === currentUser.email.toLowerCase()) {
+        statusEl.innerHTML = '<div class="status error">You cannot message yourself.</div>';
+        return;
+    }
+
+    statusEl.innerHTML = '<div class="status info">Looking up user...</div>';
+
+    try {
+        const otherUser = await findUserByEmail(email);
+        if (!otherUser) {
+            statusEl.innerHTML = '<div class="status error">No iTandem account found with that email.</div>';
+            return;
+        }
+
+        const convId = [currentUser.uid, otherUser.uid].sort().join('_');
+        const convRef = db.collection('conversations').doc(convId);
+        const convSnap = await convRef.get();
+
+        if (!convSnap.exists) {
+            const myName = currentUserName || currentUser.email;
+            const otherName = otherUser.name || otherUser.email;
+            await convRef.set({
+                participants: [currentUser.uid, otherUser.uid],
+                participantNames: {
+                    [currentUser.uid]: myName,
+                    [otherUser.uid]: otherName,
+                },
+                lastMessage: '',
+                lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+
+        emailInput.value = '';
+        statusEl.innerHTML = '';
+        const otherName = (otherUser.name || otherUser.email);
+        openConversation(convId, otherName);
+    } catch (err) {
+        console.error('Start conversation error:', err);
+        statusEl.innerHTML = `<div class="status error">Error: ${err.message}</div>`;
+    }
+}
+
+function openConversation(convId, otherName) {
+    currentConversationId = convId;
+
+    // Highlight active conversation
+    document.querySelectorAll('.conversation-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.convId === convId);
+    });
+
+    const chatPanel = document.getElementById('chatPanel');
+    chatPanel.innerHTML = `
+        <div class="chat-header">💬 ${escapeHtml(otherName)}</div>
+        <div id="messagesList" class="messages-list"></div>
+        <div class="message-input-area">
+            <input type="text" id="messageInput" placeholder="Type a message…"
+                   onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendMessage(); }">
+            <button class="btn-send" onclick="sendMessage()">Send</button>
+        </div>
+    `;
+
+    if (messagesUnsubscribe) { messagesUnsubscribe(); messagesUnsubscribe = null; }
+
+    messagesUnsubscribe = db.collection('conversations').doc(convId)
+        .collection('messages')
+        .orderBy('createdAt', 'asc')
+        .onSnapshot((snapshot) => {
+            const msgList = document.getElementById('messagesList');
+            if (!msgList) return;
+
+            if (snapshot.empty) {
+                msgList.innerHTML = '<p style="text-align:center;color:#bbb;font-size:13px;margin-top:20px;">No messages yet — say hi!</p>';
+                return;
+            }
+
+            msgList.innerHTML = '';
+            snapshot.forEach(doc => {
+                const msg = doc.data();
+                const isSent = msg.senderId === currentUser.uid;
+                const time = msg.createdAt
+                    ? new Date(msg.createdAt.toMillis()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : '';
+
+                const msgEl = document.createElement('div');
+                msgEl.className = `message ${isSent ? 'sent' : 'received'}`;
+                msgEl.innerHTML = `
+                    <div>${escapeHtml(msg.text)}</div>
+                    <div class="message-time">${time}</div>
+                `;
+                msgList.appendChild(msgEl);
+            });
+
+            msgList.scrollTop = msgList.scrollHeight;
+        }, (err) => {
+            console.error('Messages listener error:', err);
+        });
+}
+
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text || !currentConversationId) return;
+
+    input.value = '';
+    input.focus();
+
+    const myName = currentUserName || currentUser.email;
+
+    try {
+        const batch = db.batch();
+
+        const msgRef = db.collection('conversations')
+            .doc(currentConversationId)
+            .collection('messages')
+            .doc();
+        batch.set(msgRef, {
+            senderId: currentUser.uid,
+            senderName: myName,
+            text,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        const convRef = db.collection('conversations').doc(currentConversationId);
+        batch.update(convRef, {
+            lastMessage: text.length > 60 ? text.substring(0, 60) + '…' : text,
+            lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+
+        await batch.commit();
+    } catch (err) {
+        console.error('Send message error:', err);
+        alert('Failed to send message: ' + err.message);
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
