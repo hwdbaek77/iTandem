@@ -11,48 +11,49 @@ const CanvasService = require("../services/canvasService");
  */
 router.post("/signup", async (req, res) => {
   try {
-    const { email, password, name, phoneNumber, licensePlate } = req.body;
+    const { email, password, name, phoneNumber, licensePlate, userType } = req.body;
 
-    // Validate required fields
     if (!email || !password || !name) {
       return res.status(400).json({
         error: "Missing required fields: email, password, name",
       });
     }
 
-    // Create Firebase Auth user
+    const VALID_GRADES = ["SOPHOMORE", "JUNIOR", "SENIOR"];
+    const grade = VALID_GRADES.includes(userType) ? userType : "JUNIOR";
+
     const userRecord = await admin.auth().createUser({
       email,
       password,
       displayName: name,
     });
 
-    // Create user document in Firestore
     const db = admin.firestore();
+    const now = admin.firestore.FieldValue.serverTimestamp();
     const userDoc = {
       userID: userRecord.uid,
       name,
       email,
       licensePlate: licensePlate || null,
       phoneNumber: phoneNumber || null,
-      userType: "STUDENT", // SECURITY: Always default to STUDENT, never accept from request
+      userType: grade,
       permissions: [],
       canvasAccessToken: null,
       canvasDataLinked: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: now,
+      updatedAt: now,
     };
 
     await db.collection("users").doc(userRecord.uid).set(userDoc);
 
-    // Generate custom token for immediate login
-    const customToken = await admin.auth().createCustomToken(userRecord.uid);
-
     res.status(201).json({
       message: "User created successfully",
       userId: userRecord.uid,
-      customToken,
-      user: userDoc,
+      user: {
+        ...userDoc,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error("Signup error:", error);

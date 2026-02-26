@@ -48,7 +48,19 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp(email, password, extra = {}) {
-    await api.signup({ email, password, ...extra });
+    try {
+      await api.signup({ email, password, ...extra });
+    } catch (apiErr) {
+      // If the backend created the Firebase Auth user but failed afterwards
+      // (e.g. custom token generation), the account exists and we can sign in.
+      // Only re-throw for definitive failures like missing fields (400).
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        return cred.user;
+      } catch {
+        throw apiErr;
+      }
+    }
     const cred = await signInWithEmailAndPassword(auth, email, password);
     return cred.user;
   }

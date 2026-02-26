@@ -1,9 +1,9 @@
 /**
  * pdfParser.js (Cloud Functions adaptation)
- * 
+ *
  * Parses Harvard-Westlake student schedule PDFs into structured data.
- * Adapted from the standalone scheduling system to accept Buffers
- * instead of file paths, for use with Firebase Storage.
+ * Adapted for the actual pdf-parse output format where columns are
+ * concatenated without whitespace separators.
  */
 
 const pdfParse = require("pdf-parse");
@@ -11,14 +11,17 @@ const pdfParse = require("pdf-parse");
 // ── Pattern Constants ───────────────────────────────────────────────────────
 
 const COURSE_CODE_REGEX = /^\d{4}-[A-Z0-9]+-[A-Z]/;
-const SCHEDULE_PATTERN_REGEX = /(?:[x\dA-Z]+\.){5}[x\dA-Z]+/i;
+
+// Each segment is: x, single digit 1-7, CC, DS, or M followed by digits (M12)
+const SEGMENT = "(?:x|\\d|CC|DS|M\\d+)";
+const SCHEDULE_PATTERN_REGEX = new RegExp(
+  `${SEGMENT}(?:\\.${SEGMENT}){5}`, "i"
+);
 
 // ── PDF Text Extraction ─────────────────────────────────────────────────────
 
 /**
  * Extract raw text from a PDF buffer.
- * @param {Buffer} buffer - PDF file contents as a Buffer
- * @returns {Promise<string>} raw text content
  */
 async function extractTextFromBuffer(buffer) {
   const data = await pdfParse(buffer);
@@ -29,22 +32,38 @@ async function extractTextFromBuffer(buffer) {
 
 /**
  * Parse student name and grade from the PDF header.
- * @param {string[]} lines - array of text lines from the PDF
- * @returns {{ name: string, grade: number }}
+ * pdf-parse concatenates columns, so the header line looks like:
+ *   "208-9412/26/202612MEYER, MAX STEPHEN"
+ * with "Grade:Student:" on the next line.
  */
 function parseHeader(lines) {
-  for (const line of lines.slice(0, 10)) {
-    const headerMatch = line.match(
+  for (let i = 0; i < Math.min(15, lines.length); i++) {
+    const line = lines[i].trim();
+
+    // Format: NNN-NNN[date][grade][NAME]
+    // e.g. "208-9412/26/202612MEYER, MAX STEPHEN"
+    const concatMatch = line.match(
+      /\d{3}-\d{3,4}\d{1,2}\/\d{1,2}\/\d{4}(\d{1,2})([A-Z][A-Z, ]+)/
+    );
+    if (concatMatch) {
+      return {
+        grade: parseInt(concatMatch[1], 10),
+        name: concatMatch[2].trim(),
+      };
+    }
+
+    // Original format with spaces (in case some PDF extractors add them)
+    const spacedMatch = line.match(
       /\d{3}-\d{3}\s+\d+\/\d+\/\d+\s+(\d+)\s+([A-Z,\s]+?)\s*Grade:/
     );
-    if (headerMatch) {
-      const grade = parseInt(headerMatch[1], 10);
-      const name = headerMatch[2].trim();
-      return { name, grade };
+    if (spacedMatch) {
+      return {
+        grade: parseInt(spacedMatch[1], 10),
+        name: spacedMatch[2].trim(),
+      };
     }
-  }
 
-  for (const line of lines.slice(0, 10)) {
+    // Loose fallback
     const looseMatch = line.match(/(\d{1,2})\s+([A-Z][A-Z, ]+?)\s*Grade:/);
     if (looseMatch) {
       return {
@@ -61,8 +80,6 @@ function parseHeader(lines) {
 
 /**
  * Parse the schedule pattern string into per-day block assignments.
- * @param {string} pattern - e.g. "x.6.x.6.x.6"
- * @returns {{ dayAssignments: Object<number, string>, type: string }}
  */
 function parseSchedulePattern(pattern) {
   const parts = pattern.split(".");
@@ -100,8 +117,6 @@ function parseSchedulePattern(pattern) {
 
 /**
  * Determine the primary block number from a schedule pattern.
- * @param {string} pattern - e.g. "x.6.x.6.x.6"
- * @returns {number|string|null}
  */
 function extractBlockFromPattern(pattern) {
   const parts = pattern.split(".");
@@ -117,12 +132,16 @@ function extractBlockFromPattern(pattern) {
 }
 
 /**
- * Parse a single (possibly joined) course line into a structured object.
- * @param {string} line - joined course line
- * @returns {Object|null}
+ * Parse a single (possibly joined) course line.
+ * Handles both spaced and concatenated (no-space) formats.
+ *
+ * Concatenated example:
+ *   "4540-FY-AMultivariable CalculusCH3032.x.2.x.2.xLamberto-Egan, Laffite"
+ * Spaced example:
+ *   "4540-FY-A Multivariable Calculus CH303 2.x.2.x.2.x Lamberto-Egan, Laffite"
  */
 function parseSingleCourseLine(line) {
-  const codeMatch = line.match(/^(\d{4}-[A-Z0-9]+-[A-Z])\s+/);
+  const codeMatch = line.match(/^(\d{4}-[A-Z0-9]+-[A-Z])\s*/);
   if (!codeMatch) return null;
 
   const code = codeMatch[1];
@@ -134,16 +153,33 @@ function parseSingleCourseLine(line) {
   const pattern = patternMatch[0];
   const patternIdx = remainder.indexOf(pattern);
 
-  const beforePattern = remainder.slice(0, patternIdx).trim();
+  const beforePattern = remainder.slice(0, patternIdx);
   const teacher = remainder.slice(patternIdx + pattern.length).trim();
 
-  const roomMatch = beforePattern.match(/\s+([A-Z]{2,4}\d{2,3}|TPSC|CFP|TPGYM|FH\d+|ML\d+)\s*$/);
+  // Extract room from the end of beforePattern.
+  // Handles concatenated format like "Honors StatisticsCH304" and spaced "Honors Statistics CH304"
+  // Room codes: 2-4 uppercase letters + 2-3 digits (CH303, MG202, RG211, TPSC, CFP, ML100, SV112, FH202)
+  // Also handle special codes like TPSC, CFP, TPGYM that may not end in digits
+  // Standard HW rooms: 2 uppercase letters + 3 digits (CH303, MG202, RG211, etc.)
+  // Special rooms without digits: TPSC, CFP, TPGYM
+  const roomMatch = beforePattern.match(
+    /([A-Z]{2}\d{3}|TPSC|CFP|TPGYM)\s*$/
+  );
   let room = null;
-  let title = beforePattern;
+  let title = beforePattern.trim();
 
   if (roomMatch) {
     room = roomMatch[1];
     title = beforePattern.slice(0, roomMatch.index).trim();
+  }
+
+  // Handle "(No Room)" or "No Room" — if title contains that, extract it
+  if (!room) {
+    const noRoomMatch = title.match(/\(?\s*No\s*Room\s*\)?/i);
+    if (noRoomMatch) {
+      room = null;
+      title = title.replace(/\(?\s*No\s*Room\s*\)?/i, "").trim();
+    }
   }
 
   const { dayAssignments, type } = parseSchedulePattern(pattern);
@@ -163,8 +199,7 @@ function parseSingleCourseLine(line) {
 
 /**
  * Parse the course table from extracted PDF text lines.
- * @param {string[]} lines - array of text lines from PDF
- * @returns {Array<Object>}
+ * Handles the concatenated header "CourseTitleRoomScheduleTeacher".
  */
 function parseCourseTable(lines) {
   let startIdx = -1;
@@ -172,7 +207,11 @@ function parseCourseTable(lines) {
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (trimmed === "Course Title Room Schedule Teacher") {
+    // Match both spaced and concatenated course table header
+    if (
+      trimmed === "Course Title Room Schedule Teacher" ||
+      trimmed === "CourseTitleRoomScheduleTeacher"
+    ) {
       startIdx = i + 1;
     }
     if (startIdx > 0 && (trimmed === "1st Semester" || trimmed === "2nd Semester")) {
@@ -185,6 +224,8 @@ function parseCourseTable(lines) {
     throw new Error("Could not find course table in PDF");
   }
 
+  // Join continuation lines to their parent course line.
+  // A continuation line is one that doesn't start with a course code.
   const rawCourseLines = [];
   for (let i = startIdx; i < endIdx; i++) {
     const line = lines[i].trim();
@@ -193,6 +234,7 @@ function parseCourseTable(lines) {
     if (COURSE_CODE_REGEX.test(line)) {
       rawCourseLines.push(line);
     } else if (rawCourseLines.length > 0) {
+      // Join with space; handles multi-line entries like "Robotics—FRC (No Room) CC.CC..."
       rawCourseLines[rawCourseLines.length - 1] += " " + line;
     }
   }
@@ -212,8 +254,6 @@ function parseCourseTable(lines) {
 
 /**
  * Parse a Harvard-Westlake student schedule PDF from a Buffer.
- * @param {Buffer} pdfBuffer - PDF file contents
- * @returns {Promise<Object>} structured student schedule
  */
 async function parsePDFBuffer(pdfBuffer) {
   const rawText = await extractTextFromBuffer(pdfBuffer);
