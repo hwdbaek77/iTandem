@@ -15,14 +15,26 @@ const router = express.Router();
 
 /**
  * Extract a single file buffer from a multipart/form-data request.
- * Returns a promise that resolves with { buffer, filename, mimetype }.
+ * In Cloud Functions v2, req.rawBody contains the raw bytes (pre-buffered
+ * by the runtime) so we feed that directly to Busboy.
  */
 function parseFileUpload(req) {
   return new Promise((resolve, reject) => {
+    const contentType = req.headers["content-type"] || "";
+    if (!contentType.includes("multipart")) {
+      return reject(new Error(`Expected multipart/form-data but got: ${contentType || "none"}`));
+    }
+
     const busboy = Busboy({ headers: req.headers });
     let fileBuffer = null;
     let fileName = null;
     let mimeType = null;
+    let timedOut = false;
+
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      reject(new Error("File upload timed out - no file data received"));
+    }, 15000);
 
     busboy.on("file", (fieldname, file, info) => {
       const { filename, mimeType: mime } = info;
@@ -36,16 +48,24 @@ function parseFileUpload(req) {
     });
 
     busboy.on("finish", () => {
-      if (!fileBuffer) {
-        return reject(new Error("No file uploaded"));
+      clearTimeout(timeout);
+      if (timedOut) return;
+      if (!fileBuffer || fileBuffer.length === 0) {
+        return reject(new Error("No file uploaded or file is empty"));
       }
       resolve({ buffer: fileBuffer, filename: fileName, mimetype: mimeType });
     });
 
-    busboy.on("error", reject);
+    busboy.on("error", (err) => {
+      clearTimeout(timeout);
+      if (timedOut) return;
+      reject(new Error(`File upload parsing failed: ${err.message}`));
+    });
 
-    if (req.rawBody) {
-      busboy.end(req.rawBody);
+    // Cloud Functions v2 pre-buffers the body into rawBody
+    const body = req.rawBody || (Buffer.isBuffer(req.body) ? req.body : null);
+    if (body) {
+      busboy.end(body);
     } else {
       req.pipe(busboy);
     }
@@ -62,11 +82,25 @@ router.post("/upload", authenticate, async (req, res) => {
   try {
     const { buffer, filename, mimetype } = await parseFileUpload(req);
 
-    if (!mimetype || !mimetype.includes("pdf")) {
-      return res.status(400).json({ error: "Only PDF files are accepted" });
+    const isPdf = (mimetype && mimetype.includes("pdf")) || filename?.toLowerCase().endsWith(".pdf");
+    if (!isPdf) {
+      return res.status(400).json({
+        error: "Only PDF files are accepted",
+        received: { mimetype, filename },
+      });
     }
 
-    const parsedSchedule = await parsePDFBuffer(buffer);
+    let parsedSchedule;
+    try {
+      parsedSchedule = await parsePDFBuffer(buffer);
+    } catch (parseErr) {
+      console.error("PDF parse error:", parseErr);
+      return res.status(400).json({
+        error: `PDF parsing failed: ${parseErr.message}`,
+        hint: "Ensure you're uploading a Harvard-Westlake student schedule PDF.",
+      });
+    }
+
     const builtSchedule = buildSchedule(parsedSchedule);
 
     const bucket = admin.storage().bucket();
@@ -108,10 +142,10 @@ router.post("/upload", authenticate, async (req, res) => {
     });
   } catch (error) {
     console.error("Schedule upload error:", error);
-    if (error.message.includes("Could not parse") || error.message.includes("Could not find")) {
-      return res.status(400).json({ error: `PDF parsing failed: ${error.message}` });
+    if (error.message.includes("multipart")) {
+      return res.status(400).json({ error: error.message });
     }
-    res.status(500).json({ error: "Failed to upload and parse schedule" });
+    res.status(500).json({ error: `Failed to upload schedule: ${error.message}` });
   }
 });
 

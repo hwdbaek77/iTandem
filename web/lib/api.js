@@ -4,15 +4,35 @@
  */
 
 import { auth } from "./firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://us-central1-itandem-api.cloudfunctions.net/apiv2";
 
 /**
+ * Wait for Firebase Auth to finish restoring the session.
+ * On first load, auth.currentUser is null until onAuthStateChanged fires.
+ * Returns the current user (or null if not logged in).
+ */
+let authReady = null;
+function waitForAuth() {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  if (authReady) return authReady;
+  authReady = new Promise((resolve) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      unsubscribe();
+      authReady = null;
+      resolve(user);
+    });
+  });
+  return authReady;
+}
+
+/**
  * Make an authenticated API request.
- * Automatically retrieves and attaches the current user's ID token.
+ * Waits for Firebase Auth to initialize, then attaches the ID token.
  */
 async function apiRequest(path, options = {}) {
-  const user = auth.currentUser;
+  const user = auth.currentUser || await waitForAuth();
   const headers = {
     ...options.headers,
   };

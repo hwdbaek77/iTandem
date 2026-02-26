@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 
 const tabs = [
   { href: "/", label: "Home", icon: HomeIcon, exact: true },
-  { href: "/carpool", label: "Tandem", icon: CarpoolIcon },
+  { href: "/tandem", label: "Tandem", icon: TandemIcon },
+  { href: "/carpool", label: "Carpool", icon: CarpoolIcon },
   { href: "/parking", label: "Parking", icon: ParkingIcon },
   { href: "/profile", label: "Profile", icon: ProfileIcon },
 ];
@@ -16,7 +17,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40">
       <div className="mx-auto w-full max-w-md border-t border-white/10 bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
-        <ul className="grid grid-cols-4 gap-1">
+        <ul className="grid grid-cols-5 gap-0.5">
           {tabs.map(({ href, label, icon: Icon, exact }) => {
             const active = exact
               ? pathname === href
@@ -25,11 +26,11 @@ export default function BottomNav() {
               <li key={href}>
                 <Link
                   href={href}
-                  className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-md px-1 py-1 text-center"
+                  className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-md px-0.5 py-1 text-center"
                 >
                   <Icon active={active} />
                   <span
-                    className={`text-[11px] leading-none ${
+                    className={`text-[10px] leading-none ${
                       active ? "text-accent" : "text-muted"
                     }`}
                   >
@@ -57,6 +58,27 @@ function HomeIcon({ active }) {
         stroke={iconColor(active)}
         strokeWidth="1.7"
         strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function TandemIcon({ active }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="8" cy="7" r="2.5" stroke={iconColor(active)} strokeWidth="1.7" />
+      <circle cx="16" cy="7" r="2.5" stroke={iconColor(active)} strokeWidth="1.7" />
+      <path
+        d="M4 17a4 4 0 0 1 8 0M12 17a4 4 0 0 1 8 0"
+        stroke={iconColor(active)}
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+      <path
+        d="M10 12h4"
+        stroke={iconColor(active)}
+        strokeWidth="1.7"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -95,7 +117,6 @@ function ParkingIcon({ active }) {
     </svg>
   );
 }
-
 
 function ProfileIcon({ active }) {
   return (
