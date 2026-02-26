@@ -7,6 +7,7 @@ const tabs = [
   { href: "/", label: "Home", icon: HomeIcon, exact: true },
   { href: "/tandem", label: "Tandem", icon: TandemIcon },
   { href: "/carpool", label: "Carpool", icon: CarpoolIcon },
+  { href: "/chat", label: "Messages", icon: ChatIcon },
   { href: "/parking", label: "Parking", icon: ParkingIcon },
   { href: "/profile", label: "Profile", icon: ProfileIcon },
 ];
@@ -17,7 +18,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40">
       <div className="mx-auto w-full max-w-md border-t border-white/10 bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
-        <ul className="grid grid-cols-5 gap-0.5">
+        <ul className="grid grid-cols-6 gap-0.5">
           {tabs.map(({ href, label, icon: Icon, exact }) => {
             const active = exact
               ? pathname === href
@@ -127,6 +128,19 @@ function ProfileIcon({ active }) {
         stroke={iconColor(active)}
         strokeWidth="1.7"
         strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ChatIcon({ active }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+        stroke={iconColor(active)}
+        strokeWidth="1.7"
+        strokeLinejoin="round"
       />
     </svg>
   );
