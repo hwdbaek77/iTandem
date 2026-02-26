@@ -65,6 +65,22 @@ export default function HomePage() {
           }
           promptText="Find a tandem partner by schedule"
           promptLabel="Find Match"
+          promptHref="/tandem"
+          actionLabel="View Matches"
+          actionHref="/tandem"
+        />
+
+        <StatusCard
+          icon="C"
+          title="Carpool"
+          matched={topMatch}
+          matchedText={
+            topMatch
+              ? `${topMatch.name} · Best carpool match`
+              : undefined
+          }
+          promptText="Find students to carpool with"
+          promptLabel="Find Carpool"
           promptHref="/carpool"
           actionLabel="View Matches"
           actionHref="/carpool"
@@ -133,21 +149,21 @@ export default function HomePage() {
       <section className="mt-8 mb-4">
         <h3 className="text-xl font-bold mb-3">Quick Links</h3>
         <div className="grid grid-cols-2 gap-3">
+          <Link href="/tandem" className="rounded-2xl bg-card p-4 text-center transition-colors hover:bg-white/10">
+            <span className="text-2xl block mb-1">T</span>
+            <span className="text-sm text-muted">Find Tandem</span>
+          </Link>
+          <Link href="/carpool" className="rounded-2xl bg-card p-4 text-center transition-colors hover:bg-white/10">
+            <span className="text-2xl block mb-1">C</span>
+            <span className="text-sm text-muted">Find Carpool</span>
+          </Link>
           <Link href="/parking" className="rounded-2xl bg-card p-4 text-center transition-colors hover:bg-white/10">
             <span className="text-2xl block mb-1">P</span>
             <span className="text-sm text-muted">Browse Lots</span>
           </Link>
-          <Link href="/carpool" className="rounded-2xl bg-card p-4 text-center transition-colors hover:bg-white/10">
-            <span className="text-2xl block mb-1">T</span>
-            <span className="text-sm text-muted">Find Tandem</span>
-          </Link>
           <Link href="/profile" className="rounded-2xl bg-card p-4 text-center transition-colors hover:bg-white/10">
             <span className="text-2xl block mb-1">S</span>
             <span className="text-sm text-muted">My Schedule</span>
-          </Link>
-          <Link href="/chat" className="rounded-2xl bg-card p-4 text-center transition-colors hover:bg-white/10">
-            <span className="text-2xl block mb-1">M</span>
-            <span className="text-sm text-muted">Messages</span>
           </Link>
         </div>
       </section>

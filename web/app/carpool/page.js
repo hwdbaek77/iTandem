@@ -3,19 +3,18 @@
 import { useEffect, useState } from "react";
 import AppShell from "../../components/AppShell";
 import Link from "next/link";
+import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
 export default function CarpoolPage() {
+  const { profile } = useAuth();
   const [matches, setMatches] = useState(null);
   const [loading, setLoading] = useState(true);
   const [noSchedule, setNoSchedule] = useState(false);
-  const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
     api.getRankedMatches()
-      .then((data) => {
-        setMatches(data.matches || []);
-      })
+      .then((data) => setMatches(data.matches || []))
       .catch((err) => {
         if (err.message?.includes("haven't uploaded") || err.message?.includes("schedule")) {
           setNoSchedule(true);
@@ -25,29 +24,26 @@ export default function CarpoolPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  function scoreColor(score) {
-    if (score >= 70) return "text-green-400";
-    if (score >= 40) return "text-yellow-400";
-    return "text-red-400";
-  }
-
-  function scoreBg(score) {
-    if (score >= 70) return "bg-green-400/10 border-green-400/30";
-    if (score >= 40) return "bg-yellow-400/10 border-yellow-400/30";
-    return "bg-red-400/10 border-red-400/30";
-  }
+  // Carpool scoring: weight schedule compatibility but focus on departure alignment
+  const carpoolMatches = matches
+    ?.filter((m) => m.compatible)
+    .map((m) => ({
+      ...m,
+      carpoolScore: Math.round(m.score * 0.6 + (m.dayAverage || 0) * 0.4),
+    }))
+    .sort((a, b) => b.carpoolScore - a.carpoolScore);
 
   return (
     <AppShell>
-      <h2 className="text-4xl font-bold">Tandem Matching</h2>
+      <h2 className="text-4xl font-bold">Carpool</h2>
       <p className="mt-2 text-base text-muted">
-        Find your best tandem parking partner based on schedule compatibility.
+        Find students with similar schedules and routes to share rides.
       </p>
 
       {loading && (
         <div className="mt-8 py-8 text-center text-muted text-sm">
           <div className="mb-3 h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent mx-auto" />
-          Computing matches...
+          Finding carpool matches...
         </div>
       )}
 
@@ -57,7 +53,7 @@ export default function CarpoolPage() {
             S
           </div>
           <p className="text-sm text-muted mb-4">
-            Upload your schedule first to see compatibility matches.
+            Upload your schedule to find carpool partners with compatible times.
           </p>
           <Link
             href="/profile"
@@ -68,75 +64,59 @@ export default function CarpoolPage() {
         </div>
       )}
 
-      {!loading && !noSchedule && matches?.length === 0 && (
+      {!loading && !noSchedule && carpoolMatches?.length === 0 && (
         <div className="mt-6 rounded-3xl bg-card p-6 text-center">
           <p className="text-sm text-muted">
-            No other students have uploaded their schedules yet.
-            Check back later!
+            No carpool matches found yet. Check back as more students upload their schedules!
           </p>
         </div>
       )}
 
-      {!loading && matches?.length > 0 && (
-        <section className="mt-6 space-y-3">
-          {matches.map((match) => {
-            const isExpanded = expanded === (match.userId || match.name);
-            return (
-              <div
-                key={match.userId || match.name}
-                className="rounded-3xl bg-card overflow-hidden transition-all"
-              >
-                <button
-                  onClick={() => setExpanded(isExpanded ? null : (match.userId || match.name))}
-                  className="w-full p-5 text-left"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">
-                        {match.name?.charAt(0)?.toUpperCase() || "?"}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold">{match.name}</h3>
-                        <p className="text-xs text-muted">
-                          {match.compatible ? `Rank #${match.rank}` : "Incompatible"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`rounded-xl border px-3 py-1.5 ${scoreBg(match.score)}`}>
-                      <span className={`text-lg font-bold ${scoreColor(match.score)}`}>
-                        {match.score}
-                      </span>
-                      <span className="text-xs text-muted">/100</span>
-                    </div>
-                  </div>
-                </button>
+      {/* Carpool factors info */}
+      {!loading && !noSchedule && (
+        <section className="mt-4 rounded-3xl bg-card p-4">
+          <p className="text-xs text-muted">
+            Carpool matching factors: schedule alignment, arrival/departure times, extracurricular commitments, and grade level.
+            Location-based matching is coming soon.
+          </p>
+        </section>
+      )}
 
-                {isExpanded && (
-                  <div className="px-5 pb-5 pt-0 border-t border-white/5">
-                    <div className="mt-3 space-y-2 text-sm">
-                      {match.dayAverage !== undefined && (
-                        <p><span className="text-muted">Day avg score:</span> {match.dayAverage}</p>
-                      )}
-                      {match.gradeScore !== undefined && (
-                        <p><span className="text-muted">Grade match:</span> {match.gradeScore}/100</p>
-                      )}
-                      {!match.compatible && match.reason && (
-                        <p className="text-xs text-red-400">{match.reason}</p>
-                      )}
-                    </div>
-                    {match.compatible && (
-                      <Link
-                        href="/chat"
-                        className="mt-3 block rounded-xl bg-accent px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
-                      >
-                        Message {match.name?.split(" ")[0]}
-                      </Link>
-                    )}
+      {!loading && carpoolMatches?.length > 0 && (
+        <section className="mt-4 space-y-3">
+          {carpoolMatches.map((match, idx) => (
+            <div key={match.userId || match.name} className="rounded-3xl bg-card p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">
+                    {match.name?.charAt(0)?.toUpperCase() || "?"}
                   </div>
-                )}
+                  <div>
+                    <h3 className="text-base font-semibold">{match.name}</h3>
+                    <p className="text-xs text-muted">
+                      Schedule match {match.score}/100
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className={`text-lg font-bold ${
+                    match.carpoolScore >= 60 ? "text-green-400" :
+                    match.carpoolScore >= 35 ? "text-yellow-400" : "text-muted"
+                  }`}>
+                    #{idx + 1}
+                  </span>
+                </div>
               </div>
-            );
-          })}
+              <div className="mt-3 flex gap-2">
+                <Link
+                  href="/chat"
+                  className="flex-1 rounded-lg bg-accent px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
+                >
+                  Message
+                </Link>
+              </div>
+            </div>
+          ))}
         </section>
       )}
     </AppShell>

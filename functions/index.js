@@ -21,7 +21,13 @@ const app = express();
 
 // Middleware
 app.use(cors({ origin: true }));
-app.use(express.json());
+app.use((req, res, next) => {
+  const ct = req.headers["content-type"] || "";
+  if (ct.includes("multipart/form-data")) {
+    return next();
+  }
+  express.json()(req, res, next);
+});
 
 // Import routes
 const authRoutes = require("./routes/auth");
