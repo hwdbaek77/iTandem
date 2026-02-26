@@ -15,15 +15,21 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
+  const [canvasStatus, setCanvasStatus] = useState(null);
+  const [canvasToken, setCanvasToken] = useState("");
+  const [linkingCanvas, setLinkingCanvas] = useState(false);
+  const [canvasMsg, setCanvasMsg] = useState("");
+
   useEffect(() => {
     api.getMySchedule().then(setSchedule).catch(() => {});
+    api.getCanvasStatus().then(setCanvasStatus).catch(() => {});
   }, []);
 
   useEffect(() => {
     if (profile) {
       setFormData({
         name: profile.name || "",
-        phone: profile.phone || "",
+        phone: profile.phoneNumber || "",
         licensePlate: profile.licensePlate || "",
       });
     }
@@ -58,6 +64,24 @@ export default function ProfilePage() {
       setSaving(false);
     }
   }
+
+  async function handleLinkCanvas() {
+    if (!canvasToken.trim()) return;
+    setLinkingCanvas(true);
+    setCanvasMsg("");
+    try {
+      const result = await api.linkCanvasToken(canvasToken.trim());
+      setCanvasMsg(`Linked! ${result.dataFetched.coursesCount} courses imported.`);
+      setCanvasStatus({ canvasLinked: true, canvasUserName: result.canvasProfile.name });
+      setCanvasToken("");
+    } catch (err) {
+      setCanvasMsg(`Error: ${err.message}`);
+    } finally {
+      setLinkingCanvas(false);
+    }
+  }
+
+  const gradeLabel = { SOPHOMORE: "Sophomore", JUNIOR: "Junior", SENIOR: "Senior" };
 
   return (
     <AppShell>
@@ -125,9 +149,51 @@ export default function ProfilePage() {
           <div className="space-y-2 text-sm">
             <p><span className="text-muted">Name:</span> {profile?.name || "—"}</p>
             <p><span className="text-muted">Email:</span> {profile?.email || "—"}</p>
-            <p><span className="text-muted">Type:</span> {profile?.userType || "—"}</p>
-            <p><span className="text-muted">Phone:</span> {profile?.phone || "Not set"}</p>
+            <p><span className="text-muted">Grade:</span> {gradeLabel[profile?.userType] || profile?.userType || "—"}</p>
+            <p><span className="text-muted">Phone:</span> {profile?.phoneNumber || "Not set"}</p>
             <p><span className="text-muted">License Plate:</span> {profile?.licensePlate || "Not set"}</p>
+          </div>
+        )}
+      </section>
+
+      {/* Canvas integration */}
+      <section className="mt-4 rounded-3xl bg-card p-5">
+        <h3 className="text-lg font-semibold mb-3">Canvas LMS</h3>
+
+        {canvasStatus?.canvasLinked ? (
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-green-400" />
+              <span>Linked as {canvasStatus.canvasUserName}</span>
+            </div>
+            <p className="text-xs text-muted">Your Canvas data is synced for schedule matching.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted">
+              Link your Canvas account to import courses and improve matching.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                value={canvasToken}
+                onChange={(e) => setCanvasToken(e.target.value)}
+                placeholder="Paste your Canvas access token"
+                className="h-10 flex-1 rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+              />
+              <button
+                onClick={handleLinkCanvas}
+                disabled={linkingCanvas || !canvasToken.trim()}
+                className="shrink-0 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {linkingCanvas ? "Linking..." : "Link"}
+              </button>
+            </div>
+            {canvasMsg && (
+              <p className={`text-xs ${canvasMsg.startsWith("Error") ? "text-red-400" : "text-green-400"}`}>
+                {canvasMsg}
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -183,7 +249,7 @@ export default function ProfilePage() {
       </section>
 
       {/* Sign out */}
-      <section className="mt-4">
+      <section className="mt-4 pb-4">
         <button
           onClick={signOut}
           className="w-full rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-muted transition-colors hover:bg-white/5"

@@ -4,10 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/carpool", label: "Find Carpool", icon: CarpoolIcon },
-  { href: "/parking", label: "Find Parking", icon: ParkingIcon },
-  { href: "/profile", label: "Profile Settings", icon: ProfileIcon },
+  { href: "/", label: "Home", icon: HomeIcon, exact: true },
+  { href: "/carpool", label: "Tandem", icon: CarpoolIcon },
+  { href: "/parking", label: "Parking", icon: ParkingIcon },
+  { href: "/profile", label: "Profile", icon: ProfileIcon },
 ];
 
 export default function BottomNav() {
@@ -17,8 +17,10 @@ export default function BottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40">
       <div className="mx-auto w-full max-w-md border-t border-white/10 bg-card/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur">
         <ul className="grid grid-cols-4 gap-1">
-          {tabs.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+          {tabs.map(({ href, label, icon: Icon, exact }) => {
+            const active = exact
+              ? pathname === href
+              : pathname === href || pathname.startsWith(href + "/");
             return (
               <li key={href}>
                 <Link

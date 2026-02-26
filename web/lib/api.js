@@ -46,7 +46,15 @@ export const api = {
 
   // Users
   getMe: () => apiRequest("/users/me"),
-  updateMe: (data) => apiRequest("/users/me", { method: "PUT", body: JSON.stringify(data) }),
+  updateMe: (data) => {
+    const payload = { ...data };
+    if (payload.phone !== undefined) {
+      payload.phoneNumber = payload.phone;
+      delete payload.phone;
+    }
+    return apiRequest("/users/me", { method: "PUT", body: JSON.stringify(payload) });
+  },
+  getUser: (userId) => apiRequest(`/users/${userId}`),
 
   // Schedules
   uploadSchedule: (file) => {
@@ -74,6 +82,8 @@ export const api = {
   cancelRental: (rentalId) => apiRequest(`/rentals/${rentalId}/cancel`, { method: "PUT" }),
 
   // Canvas
+  linkCanvasToken: (token) => apiRequest("/auth/canvas-token", { method: "POST", body: JSON.stringify({ canvasAccessToken: token }) }),
+  getCanvasStatus: () => apiRequest("/auth/canvas-token"),
   getCanvasCourses: () => apiRequest("/canvas/courses"),
   getCanvasSchedule: () => apiRequest("/canvas/schedule"),
 

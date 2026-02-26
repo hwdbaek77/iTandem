@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
@@ -21,16 +20,20 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  async function fetchProfile() {
+    try {
+      const data = await api.getMe();
+      setProfile(data.user || data);
+    } catch {
+      setProfile(null);
+    }
+  }
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        try {
-          const data = await api.getMe();
-          setProfile(data);
-        } catch {
-          setProfile(null);
-        }
+        await fetchProfile();
       } else {
         setProfile(null);
       }
@@ -45,8 +48,8 @@ export function AuthProvider({ children }) {
   }
 
   async function signUp(email, password, extra = {}) {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    await api.signup({ email, ...extra });
+    await api.signup({ email, password, ...extra });
+    const cred = await signInWithEmailAndPassword(auth, email, password);
     return cred.user;
   }
 
@@ -56,12 +59,7 @@ export function AuthProvider({ children }) {
   }
 
   async function refreshProfile() {
-    try {
-      const data = await api.getMe();
-      setProfile(data);
-    } catch {
-      setProfile(null);
-    }
+    await fetchProfile();
   }
 
   const value = {

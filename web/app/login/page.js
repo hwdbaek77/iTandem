@@ -4,11 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../../context/AuthContext";
 
+const GRADE_OPTIONS = [
+  { value: "SOPHOMORE", label: "Sophomore" },
+  { value: "JUNIOR", label: "Junior" },
+  { value: "SENIOR", label: "Senior" },
+];
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [name, setName] = useState("");
+  const [grade, setGrade] = useState("JUNIOR");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -21,7 +28,7 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        await signUp(email, password, { name, userType: "JUNIOR" });
+        await signUp(email, password, { name, userType: grade });
       } else {
         await signIn(email, password);
       }
@@ -51,17 +58,34 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
-            <label className="block">
-              <span className="mb-2 block text-sm">Full Name</span>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your full name"
-                required={isSignUp}
-                className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none placeholder:text-muted focus:border-accent"
-              />
-            </label>
+            <>
+              <label className="block">
+                <span className="mb-2 block text-sm">Full Name</span>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your full name"
+                  required
+                  className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none placeholder:text-muted focus:border-accent"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm">Grade Level</span>
+                <select
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none focus:border-accent"
+                >
+                  {GRADE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
           )}
 
           <label className="block">
