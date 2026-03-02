@@ -19,6 +19,7 @@ export default function MessagesPage() {
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [unmatching, setUnmatching] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -91,15 +92,35 @@ export default function MessagesPage() {
   const otherId = match.direction === "sent" ? match.targetId : match.requesterId;
   const backHref = match.type === "carpool" ? "/carpool" : "/tandem";
 
+  async function handleUnmatch() {
+    if (!confirm("End this match? You will both go back on the market.")) return;
+    setUnmatching(true);
+    try {
+      await api.unmatch(matchId);
+      router.push(backHref);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUnmatching(false);
+    }
+  }
+
   return (
     <AppShell>
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center justify-between gap-3 mb-4">
         <Link href={backHref} className="text-accent text-sm font-medium">
           ← Back
         </Link>
-        <h2 className="text-xl font-bold flex-1">
+        <h2 className="text-xl font-bold flex-1 text-center">
           {match.type === "carpool" ? "Carpool" : "Tandem"} Messages
         </h2>
+        <button
+          onClick={handleUnmatch}
+          disabled={unmatching}
+          className="text-xs text-red-400 hover:underline disabled:opacity-50 shrink-0"
+        >
+          {unmatching ? "Ending..." : "End match"}
+        </button>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-card/50 min-h-[200px] max-h-[50vh] overflow-y-auto p-4 space-y-2">

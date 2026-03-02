@@ -242,12 +242,18 @@ router.post("/compare/:userId", authenticate, async (req, res) => {
 // ── GET /schedules/matches/ranked ───────────────────────────────────────────
 
 /**
- * Get a ranked list of compatible tandem partners for the current user.
- * Compares against all other users who have uploaded schedules.
+ * Get a ranked list of compatible tandem/carpool partners for the current user.
+ * Excludes users who already have an active match of the given type (taken off market).
+ * Query: ?type=tandem (default) | carpool
  */
 router.get("/matches/ranked", authenticate, async (req, res) => {
   try {
     const db = admin.firestore();
+    const matchType = (req.query.type || "tandem");
+    if (!["tandem", "carpool"].includes(matchType)) {
+      return res.status(400).json({ error: "type must be tandem or carpool" });
+    }
+
     const myScheduleDoc = await db.collection("schedules").doc(req.userId).get();
 
     if (!myScheduleDoc.exists) {
@@ -257,11 +263,25 @@ router.get("/matches/ranked", authenticate, async (req, res) => {
     const myData = myScheduleDoc.data();
     const myBuiltSchedule = myData.builtSchedule;
 
+    // Get user IDs who are already in an active match (of this type) - taken off market
+    const activeMatchesSnap = await db.collection("matches")
+      .where("type", "==", matchType)
+      .where("status", "==", "active")
+      .get();
+
+    const userIdsOffMarket = new Set();
+    activeMatchesSnap.forEach((doc) => {
+      const d = doc.data();
+      userIdsOffMarket.add(d.requesterId);
+      userIdsOffMarket.add(d.targetId);
+    });
+    userIdsOffMarket.add(req.userId); // exclude self
+
     const allSchedulesSnapshot = await db.collection("schedules").get();
     const otherSchedules = [];
 
     allSchedulesSnapshot.forEach((doc) => {
-      if (doc.id !== req.userId) {
+      if (doc.id !== req.userId && !userIdsOffMarket.has(doc.id)) {
         const data = doc.data();
         otherSchedules.push({
           userId: doc.id,
@@ -271,7 +291,7 @@ router.get("/matches/ranked", authenticate, async (req, res) => {
     });
 
     if (otherSchedules.length === 0) {
-      return res.json({ matches: [], message: "No other users have uploaded schedules yet" });
+      return res.json({ matches: [], message: "No other users available to match (all may be matched already)" });
     }
 
     const builtSchedules = otherSchedules.map((s) => s.builtSchedule);
@@ -281,6 +301,10 @@ router.get("/matches/ranked", authenticate, async (req, res) => {
       const matchedUser = otherSchedules.find(
         (s) => s.builtSchedule.name === result.studentB
       );
+      // gradeScore from algorithm is { score, compatible } - extract numeric for frontend
+      const gradeScoreNum = typeof result.gradeScore === "object" && result.gradeScore !== null
+        ? result.gradeScore.score
+        : result.gradeScore;
       return {
         rank: index + 1,
         userId: matchedUser ? matchedUser.userId : null,
@@ -289,7 +313,7 @@ router.get("/matches/ranked", authenticate, async (req, res) => {
         compatible: result.compatible,
         reason: result.reason || null,
         dayAverage: result.dayAverage,
-        gradeScore: result.gradeScore,
+        gradeScore: gradeScoreNum ?? 0,
       };
     });
 

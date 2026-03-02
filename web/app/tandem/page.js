@@ -17,7 +17,7 @@ export default function TandemPage() {
 
   useEffect(() => {
     Promise.all([
-      api.getRankedMatches().catch((err) => {
+      api.getRankedMatches("tandem").catch((err) => {
         if (err.message?.includes("haven't uploaded") || err.message?.includes("schedule")) {
           setNoSchedule(true);
         }
@@ -178,35 +178,45 @@ export default function TandemPage() {
           {ranked.map((match) => {
             const isExpanded = expanded === (match.userId || match.name);
             const state = myMatchStates[matchKey(match)];
+            const isActive = state?.status === "active";
+            const headerContent = (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">
+                    {match.name?.charAt(0)?.toUpperCase() || "?"}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold">{match.name}</h3>
+                    <p className="text-xs text-muted">
+                      {match.compatible ? `Rank #${match.rank}` : "Incompatible"}
+                    </p>
+                  </div>
+                </div>
+                <div className={`rounded-xl border px-3 py-1.5 ${scoreBg(match.score)}`}>
+                  <span className={`text-lg font-bold ${scoreColor(match.score)}`}>
+                    {match.score}
+                  </span>
+                  <span className="text-xs text-muted">/100</span>
+                </div>
+              </div>
+            );
             return (
               <div
                 key={match.userId || match.name}
                 className="rounded-3xl bg-card overflow-hidden transition-all"
               >
-                <button
-                  onClick={() => setExpanded(isExpanded ? null : (match.userId || match.name))}
-                  className="w-full p-5 text-left"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-sm font-semibold">
-                        {match.name?.charAt(0)?.toUpperCase() || "?"}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold">{match.name}</h3>
-                        <p className="text-xs text-muted">
-                          {match.compatible ? `Rank #${match.rank}` : "Incompatible"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className={`rounded-xl border px-3 py-1.5 ${scoreBg(match.score)}`}>
-                      <span className={`text-lg font-bold ${scoreColor(match.score)}`}>
-                        {match.score}
-                      </span>
-                      <span className="text-xs text-muted">/100</span>
-                    </div>
-                  </div>
-                </button>
+                {isActive ? (
+                  <Link href={`/messages/${state.id}`} className="block w-full p-5 text-left hover:bg-white/5">
+                    {headerContent}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => setExpanded(isExpanded ? null : (match.userId || match.name))}
+                    className="w-full p-5 text-left"
+                  >
+                    {headerContent}
+                  </button>
+                )}
 
                 {isExpanded && (
                   <div className="px-5 pb-5 pt-0 border-t border-white/5 space-y-3">
@@ -231,59 +241,59 @@ export default function TandemPage() {
                             <div className="rounded-2xl border border-white/10 p-3 space-y-2">
                               <div className="flex gap-2">
                                 <input
-                                  value={messageDrafts[state.id] || \"\"}
+                                  value={messageDrafts[state.id] || ""}
                                   onChange={(e) =>
                                     setMessageDrafts((p) => ({ ...p, [state.id]: e.target.value }))
                                   }
-                                  placeholder=\"Type a message\"
-                                  className=\"h-9 flex-1 rounded-lg border border-white/15 bg-background px-3 text-xs text-white outline-none focus:border-accent\"
+                                  placeholder="Type a message"
+                                  className="h-9 flex-1 rounded-lg border border-white/15 bg-background px-3 text-xs text-white outline-none focus:border-accent"
                                 />
                                 <button
                                   onClick={() => sendMessage(state.id)}
                                   disabled={messaging[state.id]}
-                                  className=\"rounded-lg bg-accent px-3 text-xs font-semibold text-white disabled:opacity-50\"
+                                  className="rounded-lg bg-accent px-3 text-xs font-semibold text-white disabled:opacity-50"
                                 >
                                   Send
                                 </button>
                               </div>
                               <button
                                 onClick={() => loadMessages(state.id)}
-                                className=\"text-xs text-accent hover:underline\"
+                                className="text-xs text-accent hover:underline"
                               >
                                 Refresh messages
                               </button>
-                              <div className=\"max-h-40 overflow-y-auto space-y-1 text-xs text-white/80\">
+                              <div className="max-h-40 overflow-y-auto space-y-1 text-xs text-white/80">
                                 {(messageLists[state.id] || []).map((m) => (
-                                  <div key={m.id} className=\"rounded bg-white/5 px-2 py-1\">
-                                    <span className=\"text-muted\">{m.senderId === state.requesterId ? \"Them\" : \"You\"}: </span>
+                                  <div key={m.id} className="rounded bg-white/5 px-2 py-1">
+                                    <span className="text-muted">{m.senderId === state.requesterId ? "Them" : "You"}: </span>
                                     {m.text}
                                   </div>
                                 ))}
-                                {messaging[state.id] && <p className=\"text-muted\">Loading...</p>}
+                                {messaging[state.id] && <p className="text-muted">Loading...</p>}
                               </div>
                             </div>
                           </div>
-                        ) : state?.status === \"pending\" && state.direction === \"received\" ? (
-                          <div className=\"flex gap-2\">
+                        ) : state?.status === "pending" && state.direction === "received" ? (
+                          <div className="flex gap-2">
                             <button
                               onClick={() => handleAccept(state, state.id)}
-                              className=\"flex-1 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white\"
+                              className="flex-1 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white"
                             >
                               Accept Match
                             </button>
                             <button
                               onClick={() => handleDecline(state, state.id)}
-                              className=\"flex-1 rounded-lg border border-white/15 px-3 py-2 text-xs text-muted\"
+                              className="flex-1 rounded-lg border border-white/15 px-3 py-2 text-xs text-muted"
                             >
                               Decline
                             </button>
                           </div>
-                        ) : state?.status === \"pending\" ? (
-                          <p className=\"text-xs text-muted\">Request sent · pending</p>
+                        ) : state?.status === "pending" ? (
+                          <p className="text-xs text-muted">Request sent · pending</p>
                         ) : (
                           <button
                             onClick={() => handleRequest(match)}
-                            className=\"mt-1 block w-full rounded-xl bg-accent px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-hover\"
+                            className="mt-1 block w-full rounded-xl bg-accent px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
                           >
                             Request Match
                           </button>

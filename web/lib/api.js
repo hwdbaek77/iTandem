@@ -94,7 +94,8 @@ export const api = {
   },
   getMySchedule: () => apiRequest("/schedules/me"),
   compareSchedule: (userId) => apiRequest(`/schedules/compare/${userId}`, { method: "POST" }),
-  getRankedMatches: () => apiRequest("/schedules/matches/ranked"),
+  getRankedMatches: (type = "tandem") =>
+    apiRequest(`/schedules/matches/ranked${type ? `?type=${encodeURIComponent(type)}` : ""}`),
 
   // Spots
   getSpots: (params = {}) => {
@@ -104,6 +105,7 @@ export const api = {
   getLots: () => apiRequest("/spots/lots"),
   getLotSpots: (lotName) => apiRequest(`/spots/lot/${encodeURIComponent(lotName)}`),
   getSpot: (spotId) => apiRequest(`/spots/${spotId}`),
+  seedSpots: () => apiRequest("/spots/seed", { method: "POST" }),
 
   // Rentals
   createRental: (data) => apiRequest("/rentals", { method: "POST", body: JSON.stringify(data) }),
@@ -116,6 +118,7 @@ export const api = {
     apiRequest("/matches/request", { method: "POST", body: JSON.stringify({ targetUserId, type }) }),
   acceptMatch: (matchId) => apiRequest(`/matches/${matchId}/accept`, { method: "PUT" }),
   declineMatch: (matchId) => apiRequest(`/matches/${matchId}/decline`, { method: "PUT" }),
+  unmatch: (matchId) => apiRequest(`/matches/${matchId}/unmatch`, { method: "PUT" }),
   getMyMatches: () => apiRequest("/matches/me"),
   sendMessage: (matchId, text) =>
     apiRequest(`/matches/${matchId}/message`, { method: "POST", body: JSON.stringify({ text }) }),

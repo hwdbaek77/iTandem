@@ -116,7 +116,7 @@ router.put("/:matchId/accept", authenticate, async (req, res) => {
 // ── PUT /matches/:matchId/decline ───────────────────────────────────────────
 
 /**
- * Decline or cancel a match.
+ * Decline or cancel a match (pending only).
  */
 router.put("/:matchId/decline", authenticate, async (req, res) => {
   try {
@@ -139,6 +139,40 @@ router.put("/:matchId/decline", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Decline match error:", error);
     res.status(500).json({ error: "Failed to decline match" });
+  }
+});
+
+// ── PUT /matches/:matchId/unmatch ───────────────────────────────────────────
+
+/**
+ * End an active match. Both users go back on the market.
+ * Only works when match status is "active".
+ */
+router.put("/:matchId/unmatch", authenticate, async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const doc = await db.collection("matches").doc(req.params.matchId).get();
+
+    if (!doc.exists) return res.status(404).json({ error: "Match not found" });
+
+    const match = doc.data();
+    if (match.requesterId !== req.userId && match.targetId !== req.userId) {
+      return res.status(403).json({ error: "Not your match" });
+    }
+    if (match.status !== "active") {
+      return res.status(400).json({ error: "Can only unmatch from an active match" });
+    }
+
+    await doc.ref.update({
+      status: "ended",
+      endedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    res.json({ message: "Match ended. You are back on the market." });
+  } catch (error) {
+    console.error("Unmatch error:", error);
+    res.status(500).json({ error: "Failed to unmatch" });
   }
 });
 
