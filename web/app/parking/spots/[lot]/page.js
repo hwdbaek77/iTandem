@@ -1,27 +1,40 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import AppShell from "../../../../components/AppShell";
 import Link from "next/link";
 import SpotCard from "../../../../components/SpotCard";
-import { getSpotsForLot, lots } from "../../../../lib/mockParking";
+import { api } from "../../../../lib/api";
 
-export default async function LotSpotsPage({ params }) {
-  const resolvedParams = await params;
-  const decodedLot = decodeURIComponent(resolvedParams.lot);
-  const lot = lots.includes(decodedLot) ? decodedLot : null;
-  const spots = lot ? getSpotsForLot(lot) : [];
+export default function LotSpotsPage() {
+  const params = useParams();
+  const lot = decodeURIComponent(params.lot);
+  const [spots, setSpots] = useState(null);
+
+  useEffect(() => {
+    if (lot) {
+      api.getLotSpots(lot)
+        .then((data) => setSpots(data.spots || []))
+        .catch(() => setSpots([]));
+    }
+  }, [lot]);
 
   return (
     <AppShell>
-      <h2 className="text-3xl font-bold">{lot ? `${lot} Lot` : "Lot not found"}</h2>
-      {lot ? (
-        <p className="mt-2 text-sm text-muted">Select an available spot to continue.</p>
-      ) : (
-        <p className="mt-2 text-sm text-muted">Please return and choose a valid lot.</p>
-      )}
+      <h2 className="text-3xl font-bold">{lot} Lot</h2>
+      <p className="mt-2 text-sm text-muted">Select an available spot to continue.</p>
 
       <div className="mt-6 space-y-3">
-        {spots.map((spot) => (
-          <SpotCard key={spot.id} lot={lot} spot={spot} />
-        ))}
+        {spots === null ? (
+          <div className="py-8 text-center text-muted text-sm">Loading spots...</div>
+        ) : spots.length === 0 ? (
+          <div className="py-8 text-center text-muted text-sm">No spots found in this lot.</div>
+        ) : (
+          spots.map((spot) => (
+            <SpotCard key={spot.id} lot={lot} spot={spot} />
+          ))
+        )}
       </div>
 
       <Link

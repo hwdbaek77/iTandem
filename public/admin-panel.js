@@ -1,15 +1,5 @@
-// Firebase Configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyAAhoJ5rnC4q9XKwrvoldp39stRs0bBvew",
-    authDomain: "itandem-api.firebaseapp.com",
-    projectId: "itandem-api",
-    storageBucket: "itandem-api.firebasestorage.app",
-    messagingSenderId: "954488814160",
-    appId: "1:954488814160:web:18f5bf2a958bb7ce0b98c5"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase using shared config from firebase-config.js
+firebase.initializeApp(FIREBASE_CONFIG);
 const auth = firebase.auth();
 
 // API Base URL

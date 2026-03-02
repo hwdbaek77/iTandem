@@ -1,5 +1,9 @@
 import Link from "next/link";
 
+/**
+ * Displays a single parking spot card with availability status.
+ * Links to the spot detail page if available.
+ */
 export default function SpotCard({ lot, spot }) {
   const availabilityClass = spot.isAvailable ? "text-green-400" : "text-red-400";
 
@@ -14,8 +18,12 @@ export default function SpotCard({ lot, spot }) {
           {spot.isAvailable ? "Available" : "Unavailable"}
         </span>
       </div>
-
-      <p className="mt-4 text-sm text-muted">Distance: {spot.distanceMiles} mi</p>
+      {spot.type && (
+        <p className="mt-3 text-sm text-muted">Type: {spot.type}</p>
+      )}
+      {spot.distanceMiles && (
+        <p className="mt-1 text-sm text-muted">Distance: {spot.distanceMiles} mi</p>
+      )}
     </div>
   );
 

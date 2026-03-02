@@ -2,3 +2,22 @@ node_modules/
 .DS_Store
 **/.DS_Store
 *.tmp
+.firebase/
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+functions/.env
+functions/.env.*
+!functions/.env.example
+
+# Firebase config with real API keys
+public/firebase-config.js
+web/.env.local
+
+# Deployment docs (generated, not needed in repo)
+ADMIN_PANEL_FINAL.md
+DEPLOYMENT_VERIFICATION.md
+DEPLOYMENT_STATUS.md
+DEPLOYMENT_COMPLETE.md
