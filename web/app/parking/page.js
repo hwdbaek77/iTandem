@@ -7,14 +7,6 @@ import { api } from "../../lib/api";
 
 const DEFAULT_LOTS = ["Taper", "Coldwater", "Hacienda", "St Michael", "Hamilton"];
 
-const MVP_LOTS = [
-  { name: "Taper Lot", slug: "taper" },
-  { name: "Coldwater Lot", slug: "coldwater" },
-  { name: "Hacienda Lot", slug: "hacienda" },
-  { name: "St Michael Lot", slug: "st-michael" },
-  { name: "Hamilton Lot", slug: "hamilton" },
-];
-
 export default function ParkingPage() {
   const [lots, setLots] = useState(null);
 

@@ -41,18 +41,20 @@ router.get("/me", authenticate, async (req, res) => {
  */
 router.put("/me", authenticate, async (req, res) => {
   try {
-    const { name, phoneNumber, licensePlate, email } = req.body;
+    const { name, phoneNumber, licensePlate, email, address, zipCode, commuteMethod } = req.body;
 
     const db = admin.firestore();
     const updateData = {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    // Only update provided fields
     if (name !== undefined) updateData.name = name;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
     if (licensePlate !== undefined) updateData.licensePlate = licensePlate;
     if (email !== undefined) updateData.email = email;
+    if (address !== undefined) updateData.address = address;
+    if (zipCode !== undefined) updateData.zipCode = zipCode;
+    if (commuteMethod !== undefined) updateData.commuteMethod = commuteMethod;
 
     // Update Firestore
     await db.collection("users").doc(req.userId).update(updateData);

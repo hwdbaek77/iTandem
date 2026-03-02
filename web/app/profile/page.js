@@ -5,13 +5,27 @@ import AppShell from "../../components/AppShell";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
+const GRADE_OPTIONS = [
+  { value: "SOPHOMORE", label: "Sophomore" },
+  { value: "JUNIOR", label: "Junior" },
+  { value: "SENIOR", label: "Senior" },
+];
+
 export default function ProfilePage() {
   const { profile, signOut, refreshProfile } = useAuth();
   const [schedule, setSchedule] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({ name: "", phone: "", licensePlate: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    licensePlate: "",
+    email: "",
+    address: "",
+    zipCode: "",
+    commuteMethod: "",
+  });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
@@ -31,6 +45,10 @@ export default function ProfilePage() {
         name: profile.name || "",
         phone: profile.phoneNumber || "",
         licensePlate: profile.licensePlate || "",
+        email: profile.email || "",
+        address: profile.address || "",
+        zipCode: profile.zipCode || "",
+        commuteMethod: profile.commuteMethod || "",
       });
     }
   }, [profile]);
@@ -83,6 +101,21 @@ export default function ProfilePage() {
 
   const gradeLabel = { SOPHOMORE: "Sophomore", JUNIOR: "Junior", SENIOR: "Senior" };
 
+  function Field({ label, field, placeholder, type = "text" }) {
+    return (
+      <label className="block">
+        <span className="text-sm text-muted">{label}</span>
+        <input
+          type={type}
+          value={formData[field]}
+          onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
+          placeholder={placeholder}
+          className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+        />
+      </label>
+    );
+  }
+
   return (
     <AppShell>
       <h2 className="text-4xl font-bold">My Profile</h2>
@@ -103,31 +136,26 @@ export default function ProfilePage() {
 
         {editing ? (
           <div className="space-y-3">
+            <Field label="Full Name" field="name" placeholder="Your full name" />
+            <Field label="Email" field="email" placeholder="you@hw.com" type="email" />
+            <Field label="Phone" field="phone" placeholder="(555) 123-4567" type="tel" />
+            <Field label="License Plate" field="licensePlate" placeholder="ABC 1234" />
+            <Field label="Home Address" field="address" placeholder="123 Main St" />
+            <Field label="ZIP Code" field="zipCode" placeholder="90210" />
             <label className="block">
-              <span className="text-sm text-muted">Name</span>
-              <input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              <span className="text-sm text-muted">Commute Preference</span>
+              <select
+                value={formData.commuteMethod}
+                onChange={(e) => setFormData({ ...formData, commuteMethod: e.target.value })}
                 className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm text-muted">Phone</span>
-              <input
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="(555) 123-4567"
-                className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
-              />
-            </label>
-            <label className="block">
-              <span className="text-sm text-muted">License Plate</span>
-              <input
-                value={formData.licensePlate}
-                onChange={(e) => setFormData({ ...formData, licensePlate: e.target.value })}
-                placeholder="ABC 1234"
-                className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
-              />
+              >
+                <option value="">Not set</option>
+                <option value="drive_alone">Drive Alone</option>
+                <option value="carpool">Carpool</option>
+                <option value="parent_drop">Parent Drop-off</option>
+                <option value="public_transit">Public Transit</option>
+                <option value="bike_walk">Bike / Walk</option>
+              </select>
             </label>
             <div className="flex gap-3 pt-2">
               <button
@@ -135,7 +163,7 @@ export default function ProfilePage() {
                 disabled={saving}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
-                {saving ? "Saving..." : "Save"}
+                {saving ? "Saving..." : "Save Changes"}
               </button>
               <button
                 onClick={() => setEditing(false)}
@@ -152,6 +180,11 @@ export default function ProfilePage() {
             <p><span className="text-muted">Grade:</span> {gradeLabel[profile?.userType] || profile?.userType || "—"}</p>
             <p><span className="text-muted">Phone:</span> {profile?.phoneNumber || "Not set"}</p>
             <p><span className="text-muted">License Plate:</span> {profile?.licensePlate || "Not set"}</p>
+            <p><span className="text-muted">Address:</span> {profile?.address || "Not set"}</p>
+            <p><span className="text-muted">ZIP Code:</span> {profile?.zipCode || "Not set"}</p>
+            <p><span className="text-muted">Commute:</span> {
+              { drive_alone: "Drive Alone", carpool: "Carpool", parent_drop: "Parent Drop-off", public_transit: "Public Transit", bike_walk: "Bike / Walk" }[profile?.commuteMethod] || "Not set"
+            }</p>
           </div>
         )}
       </section>
@@ -215,7 +248,7 @@ export default function ProfilePage() {
               <ul className="space-y-1">
                 {schedule.courses?.map((c, i) => (
                   <li key={i} className="text-xs text-white/80">
-                    {c.title} <span className="text-muted">({c.pattern})</span>
+                    {c.title} <span className="text-muted">({c.room || "No room"} · Block {c.block})</span>
                   </li>
                 ))}
               </ul>

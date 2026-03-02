@@ -72,6 +72,7 @@ export const api = {
       payload.phoneNumber = payload.phone;
       delete payload.phone;
     }
+    // Pass through all other fields directly (address, zipCode, commuteMethod, etc.)
     return apiRequest("/users/me", { method: "PUT", body: JSON.stringify(payload) });
   },
   getUser: (userId) => apiRequest(`/users/${userId}`),
@@ -100,6 +101,16 @@ export const api = {
   getMyRentals: () => apiRequest("/rentals/me"),
   getRental: (rentalId) => apiRequest(`/rentals/${rentalId}`),
   cancelRental: (rentalId) => apiRequest(`/rentals/${rentalId}/cancel`, { method: "PUT" }),
+
+  // Matches
+  sendMatchRequest: (targetUserId, type) =>
+    apiRequest("/matches/request", { method: "POST", body: JSON.stringify({ targetUserId, type }) }),
+  acceptMatch: (matchId) => apiRequest(`/matches/${matchId}/accept`, { method: "PUT" }),
+  declineMatch: (matchId) => apiRequest(`/matches/${matchId}/decline`, { method: "PUT" }),
+  getMyMatches: () => apiRequest("/matches/me"),
+  sendMessage: (matchId, text) =>
+    apiRequest(`/matches/${matchId}/message`, { method: "POST", body: JSON.stringify({ text }) }),
+  getMessages: (matchId) => apiRequest(`/matches/${matchId}/messages`),
 
   // Canvas
   linkCanvasToken: (token) => apiRequest("/auth/canvas-token", { method: "POST", body: JSON.stringify({ canvasAccessToken: token }) }),
