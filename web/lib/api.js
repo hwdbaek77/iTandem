@@ -6,7 +6,7 @@
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://us-central1-itandem-api.cloudfunctions.net/apiv2";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://apiv2-hnx3gtxgia-uc.a.run.app";
 
 /**
  * Wait for Firebase Auth to finish restoring the session.
@@ -51,6 +51,11 @@ async function apiRequest(path, options = {}) {
     headers,
   });
 
+  const contentType = res.headers.get("content-type") || "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Request failed — server returned ${res.status} (non-JSON response)`);
+  }
+
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || `Request failed with status ${res.status}`);
@@ -72,7 +77,11 @@ export const api = {
       payload.phoneNumber = payload.phone;
       delete payload.phone;
     }
-    // Pass through all other fields directly (address, zipCode, commuteMethod, etc.)
+    if (payload.spot !== undefined) {
+      payload.parkingSpot = payload.spot;
+      delete payload.spot;
+    }
+    // Pass through all other fields (address, zipCode, commuteMethod, hasSpot, doesTandem, doesCarpool, etc.)
     return apiRequest("/users/me", { method: "PUT", body: JSON.stringify(payload) });
   },
   getUser: (userId) => apiRequest(`/users/${userId}`),

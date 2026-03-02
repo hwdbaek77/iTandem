@@ -41,7 +41,11 @@ router.get("/me", authenticate, async (req, res) => {
  */
 router.put("/me", authenticate, async (req, res) => {
   try {
-    const { name, phoneNumber, licensePlate, email, address, zipCode, commuteMethod } = req.body;
+    const {
+      name, phoneNumber, licensePlate, email,
+      address, zipCode, commuteMethod,
+      parkingSpot, hasSpot, doesTandem, doesCarpool,
+    } = req.body;
 
     const db = admin.firestore();
     const updateData = {
@@ -55,6 +59,10 @@ router.put("/me", authenticate, async (req, res) => {
     if (address !== undefined) updateData.address = address;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     if (commuteMethod !== undefined) updateData.commuteMethod = commuteMethod;
+    if (parkingSpot !== undefined) updateData.parkingSpot = parkingSpot;
+    if (hasSpot !== undefined) updateData.hasSpot = hasSpot;
+    if (doesTandem !== undefined) updateData.doesTandem = doesTandem;
+    if (doesCarpool !== undefined) updateData.doesCarpool = doesCarpool;
 
     // Update Firestore
     await db.collection("users").doc(req.userId).update(updateData);

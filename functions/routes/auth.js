@@ -11,7 +11,10 @@ const CanvasService = require("../services/canvasService");
  */
 router.post("/signup", async (req, res) => {
   try {
-    const { email, password, name, phoneNumber, licensePlate, userType } = req.body;
+    const {
+      email, password, name, phoneNumber, licensePlate, userType,
+      parkingSpot, hasSpot, doesTandem, doesCarpool,
+    } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({
@@ -36,6 +39,10 @@ router.post("/signup", async (req, res) => {
       email,
       licensePlate: licensePlate || null,
       phoneNumber: phoneNumber || null,
+      parkingSpot: parkingSpot || null,
+      hasSpot: hasSpot !== undefined ? hasSpot : true,
+      doesTandem: doesTandem || false,
+      doesCarpool: doesCarpool || false,
       userType: grade,
       permissions: [],
       canvasAccessToken: null,
