@@ -30,7 +30,13 @@
     "backendId": "itandem",
     "rootDir": "web/",
     "ignore": [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/.vercel/**",
+      "**/coverage/**",
       "node_modules",
+      ".next",
+      ".vercel",
       ".git",
       "firebase-debug.log",
       "firebase-debug.*.log",

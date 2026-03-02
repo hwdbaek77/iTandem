@@ -7,11 +7,20 @@ import { api } from "../../lib/api";
 
 export default function ProfilePage() {
   const { profile, signOut, refreshProfile } = useAuth();
+  const [isSetupFlow, setIsSetupFlow] = useState(false);
   const [schedule, setSchedule] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({ name: "", phone: "", licensePlate: "" });
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    licensePlate: "",
+    spot: "",
+    hasSpot: true,
+    doesTandem: false,
+    doesCarpool: false,
+  });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
@@ -26,14 +35,29 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
+    const setupMode = new URLSearchParams(window.location.search).get("setup") === "1";
+    setIsSetupFlow(setupMode);
+  }, []);
+
+  useEffect(() => {
     if (profile) {
       setFormData({
         name: profile.name || "",
         phone: profile.phoneNumber || "",
         licensePlate: profile.licensePlate || "",
+        spot: profile.parkingSpot || "",
+        hasSpot: profile.hasSpot !== undefined ? profile.hasSpot : true,
+        doesTandem: profile.doesTandem || false,
+        doesCarpool: profile.doesCarpool || false,
       });
     }
   }, [profile]);
+
+  useEffect(() => {
+    if (isSetupFlow) {
+      setEditing(true);
+    }
+  }, [isSetupFlow]);
 
   async function handleUpload(e) {
     const file = e.target.files?.[0];
@@ -55,7 +79,9 @@ export default function ProfilePage() {
   async function handleSave() {
     setSaving(true);
     try {
-      await api.updateMe(formData);
+      const payload = { ...formData };
+      if (!payload.hasSpot) payload.spot = "";
+      await api.updateMe(payload);
       await refreshProfile();
       setEditing(false);
     } catch (err) {
@@ -86,6 +112,11 @@ export default function ProfilePage() {
   return (
     <AppShell>
       <h2 className="text-4xl font-bold">My Profile</h2>
+      {isSetupFlow && (
+        <p className="mt-2 text-sm text-muted">
+          Finish account setup by reviewing and saving your profile details.
+        </p>
+      )}
 
       {/* Profile info */}
       <section className="mt-6 rounded-3xl bg-card p-5">
@@ -129,6 +160,75 @@ export default function ProfilePage() {
                 className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
               />
             </label>
+
+            <div>
+              <span className="text-sm text-muted">Do you have a parking spot?</span>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, hasSpot: true })}
+                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                    formData.hasSpot
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-white/15 bg-background text-muted hover:border-white/30"
+                  }`}
+                >
+                  Yes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, hasSpot: false, spot: "" })}
+                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                    !formData.hasSpot
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-white/15 bg-background text-muted hover:border-white/30"
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            {formData.hasSpot && (
+              <label className="block">
+                <span className="text-sm text-muted">Parking Spot</span>
+                <input
+                  value={formData.spot}
+                  onChange={(e) => setFormData({ ...formData, spot: e.target.value })}
+                  placeholder="e.g. A-12, Lot B Row 3"
+                  className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+                />
+              </label>
+            )}
+
+            <div>
+              <span className="text-sm text-muted">Interests</span>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, doesTandem: !formData.doesTandem })}
+                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                    formData.doesTandem
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-white/15 bg-background text-muted hover:border-white/30"
+                  }`}
+                >
+                  Tandem
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, doesCarpool: !formData.doesCarpool })}
+                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                    formData.doesCarpool
+                      ? "border-accent bg-accent/15 text-accent"
+                      : "border-white/15 bg-background text-muted hover:border-white/30"
+                  }`}
+                >
+                  Carpool
+                </button>
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button
                 onClick={handleSave}
@@ -152,6 +252,28 @@ export default function ProfilePage() {
             <p><span className="text-muted">Grade:</span> {gradeLabel[profile?.userType] || profile?.userType || "—"}</p>
             <p><span className="text-muted">Phone:</span> {profile?.phoneNumber || "Not set"}</p>
             <p><span className="text-muted">License Plate:</span> {profile?.licensePlate || "Not set"}</p>
+            <p>
+              <span className="text-muted">Parking Spot:</span>{" "}
+              {profile?.hasSpot === false
+                ? "No spot"
+                : profile?.parkingSpot || "Not set"}
+            </p>
+            <div className="flex gap-2 pt-1">
+              <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                profile?.doesTandem
+                  ? "bg-accent/15 text-accent border border-accent/30"
+                  : "bg-white/5 text-muted border border-white/10"
+              }`}>
+                {profile?.doesTandem ? "Tandems" : "No tandem"}
+              </span>
+              <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
+                profile?.doesCarpool
+                  ? "bg-accent/15 text-accent border border-accent/30"
+                  : "bg-white/5 text-muted border border-white/10"
+              }`}>
+                {profile?.doesCarpool ? "Carpools" : "No carpool"}
+              </span>
+            </div>
           </div>
         )}
       </section>
