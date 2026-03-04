@@ -81,7 +81,7 @@ export const api = {
       payload.parkingSpot = payload.spot;
       delete payload.spot;
     }
-    // Pass through all other fields (address, zipCode, commuteMethod, hasSpot, doesTandem, doesCarpool, etc.)
+    // spotLot, isListedForRent, rentDays, hasSpot, doesTandem, doesCarpool passed through directly
     return apiRequest("/users/me", { method: "PUT", body: JSON.stringify(payload) });
   },
   getUser: (userId) => apiRequest(`/users/${userId}`),

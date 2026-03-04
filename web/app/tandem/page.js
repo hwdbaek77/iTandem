@@ -80,9 +80,10 @@ export default function TandemPage() {
   async function handleAccept(matchState, matchId) {
     try {
       await api.acceptMatch(matchId);
+      // Key is always stored under matchState.userId (the other user's id)
       setMyMatchStates((prev) => ({
         ...prev,
-        [matchKey({ userId: matchState.requesterId, type: matchState.type })]: {
+        [matchKey({ userId: matchState.userId, type: matchState.type })]: {
           ...matchState,
           status: "active",
         },
@@ -97,7 +98,7 @@ export default function TandemPage() {
       await api.declineMatch(matchId);
       setMyMatchStates((prev) => ({
         ...prev,
-        [matchKey({ userId: matchState.requesterId, type: matchState.type })]: {
+        [matchKey({ userId: matchState.userId, type: matchState.type })]: {
           ...matchState,
           status: "declined",
         },

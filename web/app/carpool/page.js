@@ -82,7 +82,7 @@ export default function CarpoolPage() {
       await api.acceptMatch(matchId);
       setMyMatchStates((prev) => ({
         ...prev,
-        [matchKey({ userId: state.requesterId, type: state.type })]: { ...state, status: "active" },
+        [matchKey({ userId: state.userId, type: state.type })]: { ...state, status: "active" },
       }));
     } catch (err) {
       alert(err.message);
@@ -94,7 +94,7 @@ export default function CarpoolPage() {
       await api.declineMatch(matchId);
       setMyMatchStates((prev) => ({
         ...prev,
-        [matchKey({ userId: state.requesterId, type: state.type })]: { ...state, status: "declined" },
+        [matchKey({ userId: state.userId, type: state.type })]: { ...state, status: "declined" },
       }));
     } catch (err) {
       alert(err.message);

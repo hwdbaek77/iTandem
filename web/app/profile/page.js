@@ -14,6 +14,12 @@ const COMMUTE_LABELS = {
   bike_walk: "Bike / Walk",
 };
 const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+const HW_LOTS = ["Taper", "Coldwater", "Hacienda", "St Michael", "Hamilton"];
+
+/** Returns the expected spot number prefix for a given lot (for placeholder hints). */
+function lotPrefix(lot) {
+  return { Taper: "S", Coldwater: "", Hacienda: "HC", "St Michael": "U", Hamilton: "HM" }[lot] || "";
+}
 
 /**
  * Standalone Field input component — kept OUTSIDE ProfilePage so React never
@@ -96,6 +102,7 @@ export default function ProfilePage() {
     zipCode: "",
     commuteMethod: "",
     hasSpot: false,
+    spotLot: "",
     spot: "",
     isListedForRent: false,
     rentDays: [],
@@ -131,6 +138,7 @@ export default function ProfilePage() {
         zipCode: profile.zipCode || "",
         commuteMethod: profile.commuteMethod || "",
         hasSpot: !!profile.hasSpot,
+        spotLot: profile.spotLot || "",
         spot: profile.parkingSpot || "",
         isListedForRent: !!profile.isListedForRent,
         rentDays: profile.rentDays || [],
@@ -161,6 +169,7 @@ export default function ProfilePage() {
     try {
       const payload = { ...form };
       if (!payload.hasSpot) {
+        payload.spotLot = "";
         payload.spot = "";
         payload.isListedForRent = false;
         payload.rentDays = [];
@@ -239,13 +248,13 @@ export default function ProfilePage() {
 
             {/* Parking spot ownership */}
             <div>
-              <span className="text-sm text-muted">Do you have a parking spot?</span>
+              <span className="text-sm text-muted">Do you have an assigned parking spot?</span>
               <div className="mt-1 flex gap-2">
                 {[true, false].map((val) => (
                   <button
                     key={String(val)}
                     type="button"
-                    onClick={() => setForm((p) => ({ ...p, hasSpot: val, ...(val ? {} : { spot: "", isListedForRent: false, rentDays: [] }) }))}
+                    onClick={() => setForm((p) => ({ ...p, hasSpot: val, ...(val ? {} : { spotLot: "", spot: "", isListedForRent: false, rentDays: [] }) }))}
                     className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
                       form.hasSpot === val
                         ? "border-accent bg-accent/15 text-accent"
@@ -260,12 +269,28 @@ export default function ProfilePage() {
 
             {form.hasSpot && (
               <>
-                <Field
-                  label="Spot Number / Location"
-                  value={form.spot}
-                  onChange={setField("spot")}
-                  placeholder="e.g. A-12, Taper S45"
-                />
+                <label className="block">
+                  <span className="text-sm text-muted">Parking Lot</span>
+                  <select
+                    value={form.spotLot}
+                    onChange={(e) => setForm((p) => ({ ...p, spotLot: e.target.value, spot: "" }))}
+                    className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+                  >
+                    <option value="">Select lot…</option>
+                    {HW_LOTS.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </label>
+
+                {form.spotLot && (
+                  <Field
+                    label={`Spot Number (e.g. ${lotPrefix(form.spotLot)}45)`}
+                    value={form.spot}
+                    onChange={setField("spot")}
+                    placeholder={`${lotPrefix(form.spotLot)}45`}
+                  />
+                )}
 
                 {/* Rental listing toggle */}
                 <div>
@@ -327,7 +352,11 @@ export default function ProfilePage() {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={handleSave}
-                disabled={saving || (form.isListedForRent && form.rentDays.length === 0)}
+                disabled={
+                  saving ||
+                  (form.hasSpot && !form.spotLot) ||
+                  (form.isListedForRent && form.rentDays.length === 0)
+                }
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
@@ -355,7 +384,11 @@ export default function ProfilePage() {
             <div className="pt-1 border-t border-white/5">
               <p>
                 <span className="text-muted">Parking Spot:</span>{" "}
-                {!profile?.hasSpot ? "No spot" : (profile?.parkingSpot || "Not set")}
+                {!profile?.hasSpot
+                  ? "No spot"
+                  : profile?.spotLot && profile?.parkingSpot
+                    ? `${profile.spotLot} — ${profile.parkingSpot}`
+                    : profile?.parkingSpot || "Not set"}
               </p>
               {profile?.hasSpot && (
                 <p className="mt-0.5">

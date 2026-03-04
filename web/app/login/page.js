@@ -23,6 +23,7 @@ export default function LoginPage() {
 
   const [step, setStep] = useState(1);
   const [licensePlate, setLicensePlate] = useState("");
+  const [spotLot, setSpotLot] = useState("");
   const [parkingSpot, setParkingSpot] = useState("");
   const [hasSpot, setHasSpot] = useState(false);
   const [isListedForRent, setIsListedForRent] = useState(false);
@@ -31,6 +32,9 @@ export default function LoginPage() {
   const [doesCarpool, setDoesCarpool] = useState(false);
 
   const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  const HW_LOTS = ["Taper", "Coldwater", "Hacienda", "St Michael", "Hamilton"];
+  const LOT_PREFIX = { Taper: "S", Coldwater: "", Hacienda: "HC", "St Michael": "U", Hamilton: "HM" };
+
   function toggleDay(day) {
     setRentDays((prev) =>
       prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
@@ -77,6 +81,7 @@ export default function LoginPage() {
         name,
         userType: grade,
         licensePlate: licensePlate.trim() || null,
+        spotLot: hasSpot ? spotLot || null : null,
         parkingSpot: hasSpot ? parkingSpot.trim() || null : null,
         hasSpot,
         isListedForRent: hasSpot && isListedForRent,
@@ -217,7 +222,7 @@ export default function LoginPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setHasSpot(false); setParkingSpot(""); setIsListedForRent(false); setRentDays([]); }}
+                    onClick={() => { setHasSpot(false); setSpotLot(""); setParkingSpot(""); setIsListedForRent(false); setRentDays([]); }}
                     className={`flex-1 h-12 rounded-xl border font-medium transition-colors ${
                       !hasSpot
                         ? "border-accent bg-accent/15 text-accent"
@@ -232,15 +237,33 @@ export default function LoginPage() {
               {hasSpot && (
                 <>
                   <label className="block">
-                    <span className="mb-2 block text-sm">Spot Number / Location</span>
-                    <input
-                      type="text"
-                      value={parkingSpot}
-                      onChange={(e) => setParkingSpot(e.target.value)}
-                      placeholder="e.g. A-12, Taper S45"
-                      className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none placeholder:text-muted focus:border-accent"
-                    />
+                    <span className="mb-2 block text-sm">Parking Lot</span>
+                    <select
+                      value={spotLot}
+                      onChange={(e) => { setSpotLot(e.target.value); setParkingSpot(""); }}
+                      className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none focus:border-accent"
+                    >
+                      <option value="">Select lot…</option>
+                      {HW_LOTS.map((l) => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
                   </label>
+
+                  {spotLot && (
+                    <label className="block">
+                      <span className="mb-2 block text-sm">
+                        Spot Number (e.g. {LOT_PREFIX[spotLot]}45)
+                      </span>
+                      <input
+                        type="text"
+                        value={parkingSpot}
+                        onChange={(e) => setParkingSpot(e.target.value)}
+                        placeholder={`${LOT_PREFIX[spotLot] || ""}45`}
+                        className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none placeholder:text-muted focus:border-accent"
+                      />
+                    </label>
+                  )}
 
                   <div>
                     <span className="mb-2 block text-sm">List your spot for rent when you&apos;re not using it?</span>
