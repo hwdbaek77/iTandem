@@ -1,0 +1,31 @@
+# Ignore files that should not be uploaded to Firebase App Hosting
+
+# Git
+.git/
+.gitignore
+
+# Node dependencies and build artifacts (re-installed during cloud build)
+node_modules/
+web/node_modules/
+functions/node_modules/
+scheduling system/node_modules/
+
+# Next.js build output
+web/.next/
+web/out/
+
+# Firebase debug logs
+firebase-debug.log
+firebase-debug.*.log
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+
+# Archives / large non-source dirs
+Archive/
+HannahReview/

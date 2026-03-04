@@ -270,6 +270,192 @@
             40% { content: '..'; }
             60%, 100% { content: '...'; }
         }
+
+        /* ── Messaging ── */
+        .messaging-container {
+            display: grid;
+            grid-template-columns: 230px 1fr;
+            gap: 15px;
+            height: 440px;
+            margin-top: 15px;
+        }
+
+        .conversation-list-panel {
+            border-right: 2px solid #f0f0f0;
+            padding-right: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .conversation-list-label {
+            font-weight: 600;
+            font-size: 12px;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 10px;
+        }
+
+        #conversationList {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .conversation-item {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: background 0.15s;
+            border-left: 3px solid transparent;
+        }
+
+        .conversation-item:hover {
+            background: #f4f2ff;
+        }
+
+        .conversation-item.active {
+            background: #eceaff;
+            border-left-color: #667eea;
+        }
+
+        .conv-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .conv-preview {
+            font-size: 12px;
+            color: #999;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 10px;
+            font-weight: 600;
+            font-size: 15px;
+            color: #333;
+        }
+
+        .messages-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 2px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .message {
+            padding: 9px 13px;
+            border-radius: 14px;
+            max-width: 75%;
+            word-break: break-word;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.sent {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received {
+            background: #f0f0f0;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            opacity: 0.65;
+            margin-top: 3px;
+        }
+
+        .message-input-area {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+            flex-shrink: 0;
+        }
+
+        .message-input-area input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 22px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .message-input-area input:focus {
+            border-color: #667eea;
+        }
+
+        .btn-send {
+            width: auto !important;
+            padding: 10px 20px !important;
+            border-radius: 22px !important;
+            flex-shrink: 0;
+        }
+
+        .btn-inline {
+            width: auto !important;
+            padding: 10px 18px !important;
+            flex-shrink: 0;
+        }
+
+        .new-chat-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .new-chat-row input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .new-chat-row input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .empty-chat-placeholder {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 14px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -401,12 +587,40 @@
                     <div id="detailedHealthStatus"></div>
                 </div>
             </div>
+
+            <!-- Messaging Card (full width) -->
+            <div class="card full-width">
+                <h2>💬 Messaging</h2>
+                <div class="new-chat-row">
+                    <input type="email" id="newChatEmail" placeholder="Enter a user's email to start a conversation...">
+                    <button class="btn-inline" onclick="startNewConversation()">Start Chat</button>
+                </div>
+                <div id="newChatStatus"></div>
+
+                <div class="messaging-container">
+                    <!-- Conversation list -->
+                    <div class="conversation-list-panel">
+                        <div class="conversation-list-label">Conversations</div>
+                        <div id="conversationList">
+                            <p style="color:#bbb;font-size:13px;">No conversations yet</p>
+                        </div>
+                    </div>
+
+                    <!-- Chat panel -->
+                    <div id="chatPanel" class="chat-panel">
+                        <div class="empty-chat-placeholder">
+                            Select a conversation or start a new one
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
     <script src="firebase-config.js"></script>
     <script src="app.js"></script>
