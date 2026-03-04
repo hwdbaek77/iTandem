@@ -20,4 +20,4 @@ env:
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
     value: 1:954488814160:web:18f5bf2a958bb7ce0b98c5
   - variable: NEXT_PUBLIC_API_URL
-    value: https://us-central1-itandem-api.cloudfunctions.net/apiv2
+    value: https://apiv2-hnx3gtxgia-uc.a.run.app
