@@ -1,13 +1,24 @@
 /**
  * Public-facing parking spots routes.
  * Allows authenticated users to browse available parking spots by lot.
+ * Includes a seed endpoint to populate all HW lots.
  */
 
 const express = require("express");
 const admin = require("firebase-admin");
-const { authenticate } = require("../middleware/auth");
+const { authenticate, requireAdmin } = require("../middleware/auth");
 
 const router = express.Router();
+
+// ── Lot definitions for Harvard-Westlake ─────────────────────────────────────
+
+const HW_LOTS = {
+  Taper: { prefix: "S", count: 102, compactSpots: [3,7,12,18,25,33,41,50,58,66,74,82,90,98] },
+  Coldwater: { prefix: "", start: 1, count: 46, obstructed: [8,19,30] },
+  Hacienda: { prefix: "HC", count: 95, compactSpots: [5,10,15,20,25,30,35,40], handicap: [1,2] },
+  "St Michael": { prefix: "U", count: 43 },
+  Hamilton: { prefix: "HM", count: 63, reserved: [1,2,3] },
+};
 
 // ── GET /spots ──────────────────────────────────────────────────────────────
 
@@ -46,6 +57,8 @@ router.get("/", authenticate, async (req, res) => {
 
 /**
  * Get a summary of all lots with their spot counts.
+ * Only counts spots that are actually available (isAvailable: true).
+ * Personal lots (user-owned listed spots) are included when they have available spots.
  */
 router.get("/lots", authenticate, async (req, res) => {
   try {
@@ -65,11 +78,19 @@ router.get("/lots", authenticate, async (req, res) => {
       }
     });
 
-    const lots = Object.entries(lotMap).map(([name, counts]) => ({
-      name,
-      totalSpots: counts.total,
-      availableSpots: counts.available,
-    }));
+    // Only return lots that have at least 1 spot, and put Personal last
+    const lots = Object.entries(lotMap)
+      .filter(([, counts]) => counts.total > 0)
+      .sort(([a], [b]) => {
+        if (a === "Personal") return 1;
+        if (b === "Personal") return -1;
+        return a.localeCompare(b);
+      })
+      .map(([name, counts]) => ({
+        name,
+        totalSpots: counts.total,
+        availableSpots: counts.available,
+      }));
 
     res.json({ lots });
   } catch (error) {
@@ -120,6 +141,71 @@ router.get("/:spotId", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Get spot error:", error);
     res.status(500).json({ error: "Failed to get spot details" });
+  }
+});
+
+// ── POST /spots/seed ─────────────────────────────────────────────────────────
+
+/**
+ * Populate all HW parking lots in Firestore. Idempotent — clears and rebuilds.
+ * Admin-only. Call once to set up the database.
+ */
+router.post("/seed", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    // Delete existing spots
+    const existing = await db.collection("parkingSpots").get();
+    const deleteBatch = db.batch();
+    existing.forEach((doc) => deleteBatch.delete(doc.ref));
+    if (!existing.empty) await deleteBatch.commit();
+
+    let totalCreated = 0;
+
+    for (const [lotName, config] of Object.entries(HW_LOTS)) {
+      const spots = [];
+      const start = config.start || 1;
+
+      for (let i = start; i < start + config.count; i++) {
+        const num = config.prefix ? `${config.prefix}${i}` : String(i);
+        const isObstructed = config.obstructed?.includes(i);
+        if (isObstructed) continue;
+
+        let type = "standard";
+        if (config.compactSpots?.includes(i)) type = "compact";
+        if (config.handicap?.includes(i)) type = "handicap";
+        if (config.reserved?.includes(i)) type = "reserved";
+
+        spots.push({
+          lot: lotName,
+          number: num,
+          type,
+          isAvailable: true, // for now any user can rent any spot
+          ownerId: null,
+          currentRenterId: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      // Write in batches of 500 (Firestore limit)
+      for (let i = 0; i < spots.length; i += 450) {
+        const batch = db.batch();
+        const chunk = spots.slice(i, i + 450);
+        for (const spot of chunk) {
+          const ref = db.collection("parkingSpots").doc();
+          batch.set(ref, spot);
+        }
+        await batch.commit();
+        totalCreated += chunk.length;
+      }
+    }
+
+    res.json({ message: "Parking spots seeded successfully", totalCreated });
+  } catch (error) {
+    console.error("Seed spots error:", error);
+    res.status(500).json({ error: "Failed to seed spots" });
   }
 });
 

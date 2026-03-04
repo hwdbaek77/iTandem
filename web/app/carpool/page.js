@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "../../components/AppShell";
 import Link from "next/link";
 import { useAuth } from "../../context/AuthContext";
@@ -11,27 +11,121 @@ export default function CarpoolPage() {
   const [matches, setMatches] = useState(null);
   const [loading, setLoading] = useState(true);
   const [noSchedule, setNoSchedule] = useState(false);
+  const [myMatchStates, setMyMatchStates] = useState({});
+  const [messageDrafts, setMessageDrafts] = useState({});
+  const [messageLists, setMessageLists] = useState({});
+  const [messaging, setMessaging] = useState({});
 
   useEffect(() => {
-    api.getRankedMatches()
-      .then((data) => setMatches(data.matches || []))
-      .catch((err) => {
+    Promise.all([
+      api.getRankedMatches("carpool").catch((err) => {
         if (err.message?.includes("haven't uploaded") || err.message?.includes("schedule")) {
           setNoSchedule(true);
         }
-        setMatches([]);
+        return { matches: [] };
+      }),
+      api.getMyMatches().catch(() => ({ matches: [] })),
+    ])
+      .then(([ranked, mine]) => {
+        setMatches(ranked.matches || []);
+        const state = {};
+        (mine.matches || []).forEach((m) => {
+          const otherId = m.direction === "sent" ? m.targetId : m.requesterId;
+          const key = matchKey({ userId: otherId, type: m.type });
+          state[key] = { ...m, userId: otherId };
+        });
+        setMyMatchStates(state);
       })
       .finally(() => setLoading(false));
   }, []);
 
   // Carpool scoring: weight schedule compatibility but focus on departure alignment
-  const carpoolMatches = matches
-    ?.filter((m) => m.compatible)
-    .map((m) => ({
-      ...m,
-      carpoolScore: Math.round(m.score * 0.6 + (m.dayAverage || 0) * 0.4),
-    }))
-    .sort((a, b) => b.carpoolScore - a.carpoolScore);
+  const carpoolMatches = useMemo(() => {
+    return (
+      matches
+        ?.filter((m) => m.compatible)
+        .map((m) => ({
+          ...m,
+          carpoolScore: Math.round(m.score * 0.6 + (m.dayAverage || 0) * 0.4),
+        }))
+        .sort((a, b) => b.carpoolScore - a.carpoolScore) || []
+    );
+  }, [matches]);
+
+  function matchKey(match) {
+    return `${match.userId || match.name || "unknown"}:${match.type || "carpool"}`;
+  }
+
+  async function handleRequest(match) {
+    const userId = match.userId;
+    if (!userId) return alert("Missing user id for match");
+    try {
+      const res = await api.sendMatchRequest(userId, "carpool");
+      setMyMatchStates((prev) => ({
+        ...prev,
+        [matchKey({ ...match, userId })]: {
+          requesterId: "me",
+          targetId: userId,
+          status: res.status || "pending",
+          type: "carpool",
+          direction: "sent",
+          id: res.matchId,
+        },
+      }));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleAccept(state, matchId) {
+    try {
+      await api.acceptMatch(matchId);
+      setMyMatchStates((prev) => ({
+        ...prev,
+        [matchKey({ userId: state.requesterId, type: state.type })]: { ...state, status: "active" },
+      }));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function handleDecline(state, matchId) {
+    try {
+      await api.declineMatch(matchId);
+      setMyMatchStates((prev) => ({
+        ...prev,
+        [matchKey({ userId: state.requesterId, type: state.type })]: { ...state, status: "declined" },
+      }));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function loadMessages(matchId) {
+    if (!matchId) return;
+    setMessaging((p) => ({ ...p, [matchId]: true }));
+    try {
+      const res = await api.getMessages(matchId);
+      setMessageLists((p) => ({ ...p, [matchId]: res.messages || [] }));
+    } finally {
+      setMessaging((p) => ({ ...p, [matchId]: false }));
+    }
+  }
+
+  async function sendMessage(matchId) {
+    const text = messageDrafts[matchId]?.trim();
+    if (!text) return;
+    setMessaging((p) => ({ ...p, [matchId]: true }));
+    try {
+      await api.sendMessage(matchId, text);
+      setMessageDrafts((p) => ({ ...p, [matchId]: "" }));
+      await loadMessages(matchId);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setMessaging((p) => ({ ...p, [matchId]: false }));
+    }
+  }
 
   return (
     <AppShell>
@@ -107,13 +201,86 @@ export default function CarpoolPage() {
                   </span>
                 </div>
               </div>
-              <div className="mt-3 flex gap-2">
-                <Link
-                  href="/chat"
-                  className="flex-1 rounded-lg bg-accent px-3 py-2 text-center text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
-                >
-                  Message
-                </Link>
+              <div className="mt-3 flex flex-col gap-2">
+                {(() => {
+                  const state = myMatchStates[matchKey(match)];
+                  if (state?.status === "active") {
+                    return (
+                      <div className="space-y-2">
+                        <p className="text-xs text-green-400">Matched! You can message now.</p>
+                        <Link
+                          href={`/messages/${state.id}`}
+                          className="inline-block rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white"
+                        >
+                          Open messages →
+                        </Link>
+                        <div className="rounded-2xl border border-white/10 p-3 space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              value={messageDrafts[state.id] || ""}
+                              onChange={(e) =>
+                                setMessageDrafts((p) => ({ ...p, [state.id]: e.target.value }))
+                              }
+                              placeholder="Type a message"
+                              className="h-9 flex-1 rounded-lg border border-white/15 bg-background px-3 text-xs text-white outline-none focus:border-accent"
+                            />
+                            <button
+                              onClick={() => sendMessage(state.id)}
+                              disabled={messaging[state.id]}
+                              className="rounded-lg bg-accent px-3 text-xs font-semibold text-white disabled:opacity-50"
+                            >
+                              Send
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => loadMessages(state.id)}
+                            className="text-xs text-accent hover:underline"
+                          >
+                            Refresh messages
+                          </button>
+                          <div className="max-h-40 overflow-y-auto space-y-1 text-xs text-white/80">
+                            {(messageLists[state.id] || []).map((m) => (
+                              <div key={m.id} className="rounded bg-white/5 px-2 py-1">
+                                <span className="text-muted">{m.senderId === state.requesterId ? "Them" : "You"}: </span>
+                                {m.text}
+                              </div>
+                            ))}
+                            {messaging[state.id] && <p className="text-muted">Loading...</p>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  if (state?.status === "pending" && state.direction === "received") {
+                    return (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAccept(state, state.id)}
+                          className="flex-1 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white"
+                        >
+                          Accept Match
+                        </button>
+                        <button
+                          onClick={() => handleDecline(state, state.id)}
+                          className="flex-1 rounded-lg border border-white/15 px-3 py-2 text-xs text-muted"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    );
+                  }
+                  if (state?.status === "pending") {
+                    return <p className="text-xs text-muted">Request sent · pending</p>;
+                  }
+                  return (
+                    <button
+                      onClick={() => handleRequest(match)}
+                      className="rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
+                    >
+                      Request Match
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           ))}

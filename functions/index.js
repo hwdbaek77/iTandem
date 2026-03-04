@@ -39,6 +39,7 @@ const adminPanelRoutes = require("./routes/admin-panel");
 const scheduleRoutes = require("./routes/schedules");
 const spotRoutes = require("./routes/spots");
 const rentalRoutes = require("./routes/rentals");
+const matchRoutes = require("./routes/matches");
 
 // Use routes
 app.use("/auth", authRoutes);
@@ -50,6 +51,7 @@ app.use("/admin-panel", adminPanelRoutes);
 app.use("/schedules", scheduleRoutes);
 app.use("/spots", spotRoutes);
 app.use("/rentals", rentalRoutes);
+app.use("/matches", matchRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {

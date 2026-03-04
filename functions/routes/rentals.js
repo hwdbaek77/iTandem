@@ -82,12 +82,16 @@ router.get("/me", authenticate, async (req, res) => {
     const db = admin.firestore();
     const snapshot = await db.collection("rentals")
       .where("renterId", "==", req.userId)
-      .orderBy("createdAt", "desc")
       .get();
 
     const rentals = [];
     snapshot.forEach((doc) => {
       rentals.push({ id: doc.id, ...doc.data() });
+    });
+    rentals.sort((a, b) => {
+      const ta = a.createdAt?.toMillis?.() || 0;
+      const tb = b.createdAt?.toMillis?.() || 0;
+      return tb - ta;
     });
 
     res.json({ rentals, total: rentals.length });
