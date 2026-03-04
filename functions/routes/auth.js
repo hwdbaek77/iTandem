@@ -14,6 +14,7 @@ router.post("/signup", async (req, res) => {
     const {
       email, password, name, phoneNumber, licensePlate, userType,
       parkingSpot, hasSpot, doesTandem, doesCarpool,
+      isListedForRent, rentDays,
     } = req.body;
 
     if (!email || !password || !name) {
@@ -33,6 +34,10 @@ router.post("/signup", async (req, res) => {
 
     const db = admin.firestore();
     const now = admin.firestore.FieldValue.serverTimestamp();
+    const effectiveHasSpot = hasSpot !== undefined ? !!hasSpot : false;
+    const effectiveListed = effectiveHasSpot && !!isListedForRent;
+    const effectiveDays = effectiveListed && Array.isArray(rentDays) ? rentDays : [];
+
     const userDoc = {
       userID: userRecord.uid,
       name,
@@ -40,7 +45,9 @@ router.post("/signup", async (req, res) => {
       licensePlate: licensePlate || null,
       phoneNumber: phoneNumber || null,
       parkingSpot: parkingSpot || null,
-      hasSpot: hasSpot !== undefined ? hasSpot : true,
+      hasSpot: effectiveHasSpot,
+      isListedForRent: effectiveListed,
+      rentDays: effectiveDays,
       doesTandem: doesTandem || false,
       doesCarpool: doesCarpool || false,
       userType: grade,
@@ -52,6 +59,21 @@ router.post("/signup", async (req, res) => {
     };
 
     await db.collection("users").doc(userRecord.uid).set(userDoc);
+
+    // If user listed their spot at signup, create the parkingSpots doc immediately
+    if (effectiveListed && parkingSpot && effectiveDays.length > 0) {
+      await db.collection("parkingSpots").doc(`user_${userRecord.uid}`).set({
+        lot: "Personal",
+        number: parkingSpot,
+        type: "standard",
+        isAvailable: true,
+        ownerId: userRecord.uid,
+        currentRenterId: null,
+        rentDays: effectiveDays,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
 
     res.status(201).json({
       message: "User created successfully",

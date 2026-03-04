@@ -57,6 +57,8 @@ router.get("/", authenticate, async (req, res) => {
 
 /**
  * Get a summary of all lots with their spot counts.
+ * Only counts spots that are actually available (isAvailable: true).
+ * Personal lots (user-owned listed spots) are included when they have available spots.
  */
 router.get("/lots", authenticate, async (req, res) => {
   try {
@@ -76,11 +78,19 @@ router.get("/lots", authenticate, async (req, res) => {
       }
     });
 
-    const lots = Object.entries(lotMap).map(([name, counts]) => ({
-      name,
-      totalSpots: counts.total,
-      availableSpots: counts.available,
-    }));
+    // Only return lots that have at least 1 spot, and put Personal last
+    const lots = Object.entries(lotMap)
+      .filter(([, counts]) => counts.total > 0)
+      .sort(([a], [b]) => {
+        if (a === "Personal") return 1;
+        if (b === "Personal") return -1;
+        return a.localeCompare(b);
+      })
+      .map(([name, counts]) => ({
+        name,
+        totalSpots: counts.total,
+        availableSpots: counts.available,
+      }));
 
     res.json({ lots });
   } catch (error) {

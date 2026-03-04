@@ -24,9 +24,18 @@ export default function LoginPage() {
   const [step, setStep] = useState(1);
   const [licensePlate, setLicensePlate] = useState("");
   const [parkingSpot, setParkingSpot] = useState("");
-  const [hasSpot, setHasSpot] = useState(true);
+  const [hasSpot, setHasSpot] = useState(false);
+  const [isListedForRent, setIsListedForRent] = useState(false);
+  const [rentDays, setRentDays] = useState([]);
   const [doesTandem, setDoesTandem] = useState(false);
   const [doesCarpool, setDoesCarpool] = useState(false);
+
+  const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+  function toggleDay(day) {
+    setRentDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -70,6 +79,8 @@ export default function LoginPage() {
         licensePlate: licensePlate.trim() || null,
         parkingSpot: hasSpot ? parkingSpot.trim() || null : null,
         hasSpot,
+        isListedForRent: hasSpot && isListedForRent,
+        rentDays: hasSpot && isListedForRent ? rentDays : [],
         doesTandem,
         doesCarpool,
       });
@@ -191,7 +202,7 @@ export default function LoginPage() {
               </label>
 
               <div>
-                <span className="mb-2 block text-sm">Do you have a parking spot?</span>
+                <span className="mb-2 block text-sm">Do you have an assigned parking spot?</span>
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -206,7 +217,7 @@ export default function LoginPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setHasSpot(false); setParkingSpot(""); }}
+                    onClick={() => { setHasSpot(false); setParkingSpot(""); setIsListedForRent(false); setRentDays([]); }}
                     className={`flex-1 h-12 rounded-xl border font-medium transition-colors ${
                       !hasSpot
                         ? "border-accent bg-accent/15 text-accent"
@@ -219,16 +230,78 @@ export default function LoginPage() {
               </div>
 
               {hasSpot && (
-                <label className="block">
-                  <span className="mb-2 block text-sm">Spot Number / Location</span>
-                  <input
-                    type="text"
-                    value={parkingSpot}
-                    onChange={(e) => setParkingSpot(e.target.value)}
-                    placeholder="e.g. A-12, Lot B Row 3"
-                    className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none placeholder:text-muted focus:border-accent"
-                  />
-                </label>
+                <>
+                  <label className="block">
+                    <span className="mb-2 block text-sm">Spot Number / Location</span>
+                    <input
+                      type="text"
+                      value={parkingSpot}
+                      onChange={(e) => setParkingSpot(e.target.value)}
+                      placeholder="e.g. A-12, Taper S45"
+                      className="h-12 w-full rounded-xl border border-white/15 bg-background px-3 text-white outline-none placeholder:text-muted focus:border-accent"
+                    />
+                  </label>
+
+                  <div>
+                    <span className="mb-2 block text-sm">List your spot for rent when you&apos;re not using it?</span>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setIsListedForRent(true)}
+                        className={`flex-1 h-12 rounded-xl border font-medium transition-colors ${
+                          isListedForRent
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-white/15 bg-background text-muted hover:border-white/30"
+                        }`}
+                      >
+                        Yes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setIsListedForRent(false); setRentDays([]); }}
+                        className={`flex-1 h-12 rounded-xl border font-medium transition-colors ${
+                          !isListedForRent
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-white/15 bg-background text-muted hover:border-white/30"
+                        }`}
+                      >
+                        No
+                      </button>
+                    </div>
+                  </div>
+
+                  {isListedForRent && (
+                    <div>
+                      <span className="mb-2 block text-sm">Which days can others rent your spot?</span>
+                      <div className="flex flex-wrap gap-2">
+                        {WEEK_DAYS.map((day) => (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => toggleDay(day)}
+                            className={`h-10 w-12 rounded-xl border font-medium text-sm transition-colors ${
+                              rentDays.includes(day)
+                                ? "border-accent bg-accent/15 text-accent"
+                                : "border-white/15 bg-background text-muted hover:border-white/30"
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setRentDays(rentDays.length === 5 ? [] : [...WEEK_DAYS])}
+                          className="h-10 rounded-xl border border-white/15 px-3 text-sm text-muted hover:border-white/30"
+                        >
+                          {rentDays.length === 5 ? "Clear" : "All"}
+                        </button>
+                      </div>
+                      {rentDays.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-400">Select at least one day.</p>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
 
               <div>
@@ -298,7 +371,7 @@ export default function LoginPage() {
             )}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isSignUp && step === 2 && isListedForRent && rentDays.length === 0)}
               className="mt-2 h-12 flex-1 rounded-xl bg-accent font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
             >
               {loading

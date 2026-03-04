@@ -45,6 +45,7 @@ router.put("/me", authenticate, async (req, res) => {
       name, phoneNumber, licensePlate, email,
       address, zipCode, commuteMethod,
       parkingSpot, hasSpot, doesTandem, doesCarpool,
+      isListedForRent, rentDays,
     } = req.body;
 
     const db = admin.firestore();
@@ -63,9 +64,51 @@ router.put("/me", authenticate, async (req, res) => {
     if (hasSpot !== undefined) updateData.hasSpot = hasSpot;
     if (doesTandem !== undefined) updateData.doesTandem = doesTandem;
     if (doesCarpool !== undefined) updateData.doesCarpool = doesCarpool;
+    if (isListedForRent !== undefined) updateData.isListedForRent = !!isListedForRent;
+    if (rentDays !== undefined) updateData.rentDays = Array.isArray(rentDays) ? rentDays : [];
 
-    // Update Firestore
+    // Update Firestore user doc
     await db.collection("users").doc(req.userId).update(updateData);
+
+    // Sync user-owned spot listing to parkingSpots collection.
+    // Each user who owns a spot gets a doc with id "user_{userId}".
+    // It is only marked available when they list it for rent with at least one day.
+    const spotDocId = `user_${req.userId}`;
+    const shouldList = updateData.hasSpot && updateData.isListedForRent
+      && Array.isArray(updateData.rentDays) && updateData.rentDays.length > 0;
+    const spotRef = db.collection("parkingSpots").doc(spotDocId);
+    const spotSnap = await spotRef.get();
+
+    if (updateData.hasSpot === true || shouldList !== undefined) {
+      const currentUserDoc = await db.collection("users").doc(req.userId).get();
+      const userData = currentUserDoc.data();
+      const effectiveHasSpot = updateData.hasSpot !== undefined ? updateData.hasSpot : userData.hasSpot;
+      const effectiveListed = updateData.isListedForRent !== undefined ? updateData.isListedForRent : userData.isListedForRent;
+      const effectiveDays = updateData.rentDays !== undefined ? updateData.rentDays : (userData.rentDays || []);
+      const effectiveSpotNum = updateData.parkingSpot !== undefined ? updateData.parkingSpot : userData.parkingSpot;
+      const isActive = effectiveHasSpot && effectiveListed && effectiveDays.length > 0;
+
+      if (isActive && effectiveSpotNum) {
+        const spotData = {
+          lot: "Personal",
+          number: effectiveSpotNum,
+          type: "standard",
+          isAvailable: true,
+          ownerId: req.userId,
+          currentRenterId: spotSnap.exists ? (spotSnap.data().currentRenterId || null) : null,
+          rentDays: effectiveDays,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (spotSnap.exists) {
+          await spotRef.update(spotData);
+        } else {
+          await spotRef.set({ ...spotData, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+        }
+      } else if (spotSnap.exists) {
+        // Unlist — mark unavailable but keep the doc (preserves rental history)
+        await spotRef.update({ isAvailable: false, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      }
+    }
 
     // If email is being updated, also update Firebase Auth
     if (email) {

@@ -1,15 +1,76 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import AppShell from "../../components/AppShell";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
-const GRADE_OPTIONS = [
-  { value: "SOPHOMORE", label: "Sophomore" },
-  { value: "JUNIOR", label: "Junior" },
-  { value: "SENIOR", label: "Senior" },
-];
+const GRADE_LABELS = { SOPHOMORE: "Sophomore", JUNIOR: "Junior", SENIOR: "Senior" };
+const COMMUTE_LABELS = {
+  drive_alone: "Drive Alone",
+  carpool: "Carpool",
+  parent_drop: "Parent Drop-off",
+  public_transit: "Public Transit",
+  bike_walk: "Bike / Walk",
+};
+const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+/**
+ * Standalone Field input component — kept OUTSIDE ProfilePage so React never
+ * treats it as a new component type on re-render, which would lose focus.
+ */
+function Field({ label, value, onChange, placeholder, type = "text" }) {
+  return (
+    <label className="block">
+      <span className="text-sm text-muted">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+      />
+    </label>
+  );
+}
+
+/**
+ * Day picker for rental availability (Mon–Fri).
+ */
+function DayPicker({ selected, onChange }) {
+  function toggle(day) {
+    if (selected.includes(day)) {
+      onChange(selected.filter((d) => d !== day));
+    } else {
+      onChange([...selected, day]);
+    }
+  }
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {WEEK_DAYS.map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => toggle(d)}
+          className={`h-8 w-10 rounded-lg border text-xs font-medium transition-colors ${
+            selected.includes(d)
+              ? "border-accent bg-accent/20 text-accent"
+              : "border-white/15 bg-background text-muted hover:border-white/30"
+          }`}
+        >
+          {d}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={() => onChange(selected.length === 5 ? [] : [...WEEK_DAYS])}
+        className="h-8 rounded-lg border border-white/15 px-2 text-xs text-muted hover:border-white/30"
+      >
+        {selected.length === 5 ? "None" : "All"}
+      </button>
+    </div>
+  );
+}
 
 export default function ProfilePage() {
   const { profile, signOut, refreshProfile } = useAuth();
@@ -18,19 +79,6 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState("");
   const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    licensePlate: "",
-    email: "",
-    address: "",
-    zipCode: "",
-    commuteMethod: "",
-    spot: "",
-    hasSpot: true,
-    doesTandem: false,
-    doesCarpool: false,
-  });
   const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
@@ -38,6 +86,28 @@ export default function ProfilePage() {
   const [canvasToken, setCanvasToken] = useState("");
   const [linkingCanvas, setLinkingCanvas] = useState(false);
   const [canvasMsg, setCanvasMsg] = useState("");
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    licensePlate: "",
+    address: "",
+    zipCode: "",
+    commuteMethod: "",
+    hasSpot: false,
+    spot: "",
+    isListedForRent: false,
+    rentDays: [],
+    doesTandem: false,
+    doesCarpool: false,
+  });
+
+  // Helper — stable callback that updates a single form field
+  const setField = useCallback((field) => (e) => {
+    const value = e.target ? e.target.value : e;
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   useEffect(() => {
     api.getMySchedule().then(setSchedule).catch(() => {});
@@ -47,31 +117,28 @@ export default function ProfilePage() {
   useEffect(() => {
     const setupMode = new URLSearchParams(window.location.search).get("setup") === "1";
     setIsSetupFlow(setupMode);
+    if (setupMode) setEditing(true);
   }, []);
 
   useEffect(() => {
     if (profile) {
-      setFormData({
+      setForm({
         name: profile.name || "",
+        email: profile.email || "",
         phone: profile.phoneNumber || "",
         licensePlate: profile.licensePlate || "",
-        email: profile.email || "",
         address: profile.address || "",
         zipCode: profile.zipCode || "",
         commuteMethod: profile.commuteMethod || "",
+        hasSpot: !!profile.hasSpot,
         spot: profile.parkingSpot || "",
-        hasSpot: profile.hasSpot !== undefined ? profile.hasSpot : true,
-        doesTandem: profile.doesTandem || false,
-        doesCarpool: profile.doesCarpool || false,
+        isListedForRent: !!profile.isListedForRent,
+        rentDays: profile.rentDays || [],
+        doesTandem: !!profile.doesTandem,
+        doesCarpool: !!profile.doesCarpool,
       });
     }
   }, [profile]);
-
-  useEffect(() => {
-    if (isSetupFlow) {
-      setEditing(true);
-    }
-  }, [isSetupFlow]);
 
   async function handleUpload(e) {
     const file = e.target.files?.[0];
@@ -81,8 +148,7 @@ export default function ProfilePage() {
     try {
       const result = await api.uploadSchedule(file);
       setUploadMsg(`Parsed ${result.schedule.courseCount} courses for ${result.schedule.name}`);
-      const fresh = await api.getMySchedule();
-      setSchedule(fresh);
+      setSchedule(await api.getMySchedule());
     } catch (err) {
       setUploadMsg(`Error: ${err.message}`);
     } finally {
@@ -93,8 +159,13 @@ export default function ProfilePage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const payload = { ...formData };
-      if (!payload.hasSpot) payload.spot = "";
+      const payload = { ...form };
+      if (!payload.hasSpot) {
+        payload.spot = "";
+        payload.isListedForRent = false;
+        payload.rentDays = [];
+      }
+      if (!payload.isListedForRent) payload.rentDays = [];
       await api.updateMe(payload);
       await refreshProfile();
       setEditing(false);
@@ -121,23 +192,6 @@ export default function ProfilePage() {
     }
   }
 
-  const gradeLabel = { SOPHOMORE: "Sophomore", JUNIOR: "Junior", SENIOR: "Senior" };
-
-  function Field({ label, field, placeholder, type = "text" }) {
-    return (
-      <label className="block">
-        <span className="text-sm text-muted">{label}</span>
-        <input
-          type={type}
-          value={formData[field]}
-          onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
-          placeholder={placeholder}
-          className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
-        />
-      </label>
-    );
-  }
-
   return (
     <AppShell>
       <h2 className="text-4xl font-bold">My Profile</h2>
@@ -147,15 +201,12 @@ export default function ProfilePage() {
         </p>
       )}
 
-      {/* Profile info */}
+      {/* ── Account info ── */}
       <section className="mt-6 rounded-3xl bg-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Account Info</h3>
           {!editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="text-sm text-accent hover:underline"
-            >
+            <button onClick={() => setEditing(true)} className="text-sm text-accent hover:underline">
               Edit
             </button>
           )}
@@ -163,17 +214,18 @@ export default function ProfilePage() {
 
         {editing ? (
           <div className="space-y-3">
-            <Field label="Full Name" field="name" placeholder="Your full name" />
-            <Field label="Email" field="email" placeholder="you@hw.com" type="email" />
-            <Field label="Phone" field="phone" placeholder="(555) 123-4567" type="tel" />
-            <Field label="License Plate" field="licensePlate" placeholder="ABC 1234" />
-            <Field label="Home Address" field="address" placeholder="123 Main St" />
-            <Field label="ZIP Code" field="zipCode" placeholder="90210" />
+            <Field label="Full Name" value={form.name} onChange={setField("name")} placeholder="Your full name" />
+            <Field label="Email" value={form.email} onChange={setField("email")} placeholder="you@hw.com" type="email" />
+            <Field label="Phone" value={form.phone} onChange={setField("phone")} placeholder="(555) 123-4567" type="tel" />
+            <Field label="License Plate" value={form.licensePlate} onChange={setField("licensePlate")} placeholder="ABC 1234" />
+            <Field label="Home Address" value={form.address} onChange={setField("address")} placeholder="123 Main St" />
+            <Field label="ZIP Code" value={form.zipCode} onChange={setField("zipCode")} placeholder="90210" />
+
             <label className="block">
               <span className="text-sm text-muted">Commute Preference</span>
               <select
-                value={formData.commuteMethod}
-                onChange={(e) => setFormData({ ...formData, commuteMethod: e.target.value })}
+                value={form.commuteMethod}
+                onChange={setField("commuteMethod")}
                 className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
               >
                 <option value="">Not set</option>
@@ -185,131 +237,156 @@ export default function ProfilePage() {
               </select>
             </label>
 
+            {/* Parking spot ownership */}
             <div>
               <span className="text-sm text-muted">Do you have a parking spot?</span>
               <div className="mt-1 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, hasSpot: true })}
-                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
-                    formData.hasSpot
-                      ? "border-accent bg-accent/15 text-accent"
-                      : "border-white/15 bg-background text-muted hover:border-white/30"
-                  }`}
-                >
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, hasSpot: false, spot: "" })}
-                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
-                    !formData.hasSpot
-                      ? "border-accent bg-accent/15 text-accent"
-                      : "border-white/15 bg-background text-muted hover:border-white/30"
-                  }`}
-                >
-                  No
-                </button>
+                {[true, false].map((val) => (
+                  <button
+                    key={String(val)}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, hasSpot: val, ...(val ? {} : { spot: "", isListedForRent: false, rentDays: [] }) }))}
+                    className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                      form.hasSpot === val
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-white/15 bg-background text-muted hover:border-white/30"
+                    }`}
+                  >
+                    {val ? "Yes" : "No"}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {formData.hasSpot && (
-              <label className="block">
-                <span className="text-sm text-muted">Parking Spot</span>
-                <input
-                  value={formData.spot}
-                  onChange={(e) => setFormData({ ...formData, spot: e.target.value })}
-                  placeholder="e.g. A-12, Lot B Row 3"
-                  className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+            {form.hasSpot && (
+              <>
+                <Field
+                  label="Spot Number / Location"
+                  value={form.spot}
+                  onChange={setField("spot")}
+                  placeholder="e.g. A-12, Taper S45"
                 />
-              </label>
+
+                {/* Rental listing toggle */}
+                <div>
+                  <span className="text-sm text-muted">List spot for rent?</span>
+                  <div className="mt-1 flex gap-2">
+                    {[true, false].map((val) => (
+                      <button
+                        key={String(val)}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, isListedForRent: val, ...(val ? {} : { rentDays: [] }) }))}
+                        className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                          form.isListedForRent === val
+                            ? "border-accent bg-accent/15 text-accent"
+                            : "border-white/15 bg-background text-muted hover:border-white/30"
+                        }`}
+                      >
+                        {val ? "Yes — put on market" : "No — keep private"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {form.isListedForRent && (
+                  <div>
+                    <span className="text-sm text-muted block mb-1.5">Available days for rent</span>
+                    <DayPicker
+                      selected={form.rentDays}
+                      onChange={(days) => setForm((p) => ({ ...p, rentDays: days }))}
+                    />
+                    {form.rentDays.length === 0 && (
+                      <p className="mt-1 text-xs text-amber-400">Select at least one day to list your spot.</p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
+            {/* Interests */}
             <div>
               <span className="text-sm text-muted">Interests</span>
               <div className="mt-1 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, doesTandem: !formData.doesTandem })}
-                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
-                    formData.doesTandem
-                      ? "border-accent bg-accent/15 text-accent"
-                      : "border-white/15 bg-background text-muted hover:border-white/30"
-                  }`}
-                >
-                  Tandem
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, doesCarpool: !formData.doesCarpool })}
-                  className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
-                    formData.doesCarpool
-                      ? "border-accent bg-accent/15 text-accent"
-                      : "border-white/15 bg-background text-muted hover:border-white/30"
-                  }`}
-                >
-                  Carpool
-                </button>
+                {[["doesTandem", "Tandem"], ["doesCarpool", "Carpool"]].map(([field, label]) => (
+                  <button
+                    key={field}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, [field]: !p[field] }))}
+                    className={`flex-1 h-10 rounded-lg border text-sm font-medium transition-colors ${
+                      form[field]
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-white/15 bg-background text-muted hover:border-white/30"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="flex gap-3 pt-2">
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || (form.isListedForRent && form.rentDays.length === 0)}
                 className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="rounded-lg border border-white/15 px-4 py-2 text-sm text-muted"
-              >
-                Cancel
-              </button>
+              {!isSetupFlow && (
+                <button
+                  onClick={() => setEditing(false)}
+                  className="rounded-lg border border-white/15 px-4 py-2 text-sm text-muted"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
         ) : (
           <div className="space-y-2 text-sm">
             <p><span className="text-muted">Name:</span> {profile?.name || "—"}</p>
             <p><span className="text-muted">Email:</span> {profile?.email || "—"}</p>
-            <p><span className="text-muted">Grade:</span> {gradeLabel[profile?.userType] || profile?.userType || "—"}</p>
+            <p><span className="text-muted">Grade:</span> {GRADE_LABELS[profile?.userType] || profile?.userType || "—"}</p>
             <p><span className="text-muted">Phone:</span> {profile?.phoneNumber || "Not set"}</p>
+            <p><span className="text-muted">License Plate:</span> {profile?.licensePlate || "Not set"}</p>
             <p><span className="text-muted">Address:</span> {profile?.address || "Not set"}</p>
-            <p><span className="text-muted">ZIP Code:</span> {profile?.zipCode || "Not set"}</p>
-            <p><span className="text-muted">Commute:</span> {(
-              { drive_alone: "Drive Alone", carpool: "Carpool", parent_drop: "Parent Drop-off", public_transit: "Public Transit", bike_walk: "Bike / Walk" }
-            )[profile?.commuteMethod] || "Not set"}</p>
-            <p>
-              <span className="text-muted">Parking Spot:</span>{" "}
-              {profile?.hasSpot === false
-                ? "No spot"
-                : profile?.parkingSpot || "Not set"}
-            </p>
+            <p><span className="text-muted">ZIP:</span> {profile?.zipCode || "Not set"}</p>
+            <p><span className="text-muted">Commute:</span> {COMMUTE_LABELS[profile?.commuteMethod] || "Not set"}</p>
+            <div className="pt-1 border-t border-white/5">
+              <p>
+                <span className="text-muted">Parking Spot:</span>{" "}
+                {!profile?.hasSpot ? "No spot" : (profile?.parkingSpot || "Not set")}
+              </p>
+              {profile?.hasSpot && (
+                <p className="mt-0.5">
+                  <span className="text-muted">Listed for rent:</span>{" "}
+                  {profile?.isListedForRent
+                    ? `Yes — ${(profile?.rentDays || []).join(", ") || "no days set"}`
+                    : "No"}
+                </p>
+              )}
+            </div>
             <div className="flex gap-2 pt-1">
-              <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                profile?.doesTandem
-                  ? "bg-accent/15 text-accent border border-accent/30"
-                  : "bg-white/5 text-muted border border-white/10"
-              }`}>
-                {profile?.doesTandem ? "Tandems" : "No tandem"}
-              </span>
-              <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                profile?.doesCarpool
-                  ? "bg-accent/15 text-accent border border-accent/30"
-                  : "bg-white/5 text-muted border border-white/10"
-              }`}>
-                {profile?.doesCarpool ? "Carpools" : "No carpool"}
-              </span>
+              {[["doesTandem", "Tandem"], ["doesCarpool", "Carpool"]].map(([field, label]) => (
+                <span
+                  key={field}
+                  className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border ${
+                    profile?.[field]
+                      ? "bg-accent/15 text-accent border-accent/30"
+                      : "bg-white/5 text-muted border-white/10"
+                  }`}
+                >
+                  {profile?.[field] ? label : `No ${label.toLowerCase()}`}
+                </span>
+              ))}
             </div>
           </div>
         )}
       </section>
 
-      {/* Canvas integration */}
+      {/* ── Canvas integration ── */}
       <section className="mt-4 rounded-3xl bg-card p-5">
         <h3 className="text-lg font-semibold mb-3">Canvas LMS</h3>
-
         {canvasStatus?.canvasLinked ? (
           <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2">
@@ -348,10 +425,9 @@ export default function ProfilePage() {
         )}
       </section>
 
-      {/* Schedule upload */}
+      {/* ── Schedule upload ── */}
       <section className="mt-4 rounded-3xl bg-card p-5">
         <h3 className="text-lg font-semibold mb-3">Schedule</h3>
-
         {schedule ? (
           <div className="space-y-2 text-sm">
             <p><span className="text-muted">Student:</span> {schedule.name}</p>
@@ -376,13 +452,7 @@ export default function ProfilePage() {
         )}
 
         <div className="mt-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf"
-            onChange={handleUpload}
-            className="hidden"
-          />
+          <input ref={fileRef} type="file" accept=".pdf" onChange={handleUpload} className="hidden" />
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
@@ -398,7 +468,7 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      {/* Sign out */}
+      {/* ── Sign out ── */}
       <section className="mt-4 pb-4">
         <button
           onClick={signOut}
