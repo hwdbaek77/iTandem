@@ -44,7 +44,7 @@ router.put("/me", authenticate, async (req, res) => {
     const {
       name, phoneNumber, licensePlate, email,
       address, zipCode, commuteMethod,
-      parkingSpot, hasSpot, doesTandem, doesCarpool,
+      parkingSpot, spotLot, hasSpot, doesTandem, doesCarpool,
       isListedForRent, rentDays,
     } = req.body;
 
@@ -61,7 +61,8 @@ router.put("/me", authenticate, async (req, res) => {
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     if (commuteMethod !== undefined) updateData.commuteMethod = commuteMethod;
     if (parkingSpot !== undefined) updateData.parkingSpot = parkingSpot;
-    if (hasSpot !== undefined) updateData.hasSpot = hasSpot;
+    if (spotLot !== undefined) updateData.spotLot = spotLot;
+    if (hasSpot !== undefined) updateData.hasSpot = !!hasSpot;
     if (doesTandem !== undefined) updateData.doesTandem = doesTandem;
     if (doesCarpool !== undefined) updateData.doesCarpool = doesCarpool;
     if (isListedForRent !== undefined) updateData.isListedForRent = !!isListedForRent;
@@ -70,43 +71,60 @@ router.put("/me", authenticate, async (req, res) => {
     // Update Firestore user doc
     await db.collection("users").doc(req.userId).update(updateData);
 
-    // Sync user-owned spot listing to parkingSpots collection.
-    // Each user who owns a spot gets a doc with id "user_{userId}".
-    // It is only marked available when they list it for rent with at least one day.
-    const spotDocId = `user_${req.userId}`;
-    const shouldList = updateData.hasSpot && updateData.isListedForRent
-      && Array.isArray(updateData.rentDays) && updateData.rentDays.length > 0;
-    const spotRef = db.collection("parkingSpots").doc(spotDocId);
-    const spotSnap = await spotRef.get();
+    // Sync ownership to the actual seeded parkingSpots doc.
+    // We read the freshest merged values from the now-updated user doc.
+    const freshUserSnap = await db.collection("users").doc(req.userId).get();
+    const fresh = freshUserSnap.data();
 
-    if (updateData.hasSpot === true || shouldList !== undefined) {
-      const currentUserDoc = await db.collection("users").doc(req.userId).get();
-      const userData = currentUserDoc.data();
-      const effectiveHasSpot = updateData.hasSpot !== undefined ? updateData.hasSpot : userData.hasSpot;
-      const effectiveListed = updateData.isListedForRent !== undefined ? updateData.isListedForRent : userData.isListedForRent;
-      const effectiveDays = updateData.rentDays !== undefined ? updateData.rentDays : (userData.rentDays || []);
-      const effectiveSpotNum = updateData.parkingSpot !== undefined ? updateData.parkingSpot : userData.parkingSpot;
-      const isActive = effectiveHasSpot && effectiveListed && effectiveDays.length > 0;
+    const effectiveHasSpot = !!fresh.hasSpot;
+    const effectiveLot = fresh.spotLot || null;
+    const effectiveSpotNum = fresh.parkingSpot || null;
+    const effectiveListed = !!fresh.isListedForRent;
+    const effectiveDays = Array.isArray(fresh.rentDays) ? fresh.rentDays : [];
 
-      if (isActive && effectiveSpotNum) {
-        const spotData = {
-          lot: "Personal",
-          number: effectiveSpotNum,
-          type: "standard",
-          isAvailable: true,
-          ownerId: req.userId,
-          currentRenterId: spotSnap.exists ? (spotSnap.data().currentRenterId || null) : null,
-          rentDays: effectiveDays,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        if (spotSnap.exists) {
-          await spotRef.update(spotData);
+    if (effectiveHasSpot && effectiveLot && effectiveSpotNum) {
+      // Find the spot doc in parkingSpots by lot + number
+      const spotQuery = await db.collection("parkingSpots")
+        .where("lot", "==", effectiveLot)
+        .where("number", "==", effectiveSpotNum)
+        .limit(1)
+        .get();
+
+      if (!spotQuery.empty) {
+        const spotDoc = spotQuery.docs[0];
+        const prevOwner = spotDoc.data().ownerId;
+
+        // If this spot was previously owned by someone else, leave it alone
+        if (prevOwner && prevOwner !== req.userId) {
+          console.warn(`Spot ${effectiveLot}/${effectiveSpotNum} is owned by another user.`);
         } else {
-          await spotRef.set({ ...spotData, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+          const shouldList = effectiveListed && effectiveDays.length > 0;
+          await spotDoc.ref.update({
+            ownerId: req.userId,
+            isAvailable: shouldList,
+            rentDays: effectiveDays,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          // Update stored spotId on user doc for reference
+          await db.collection("users").doc(req.userId).update({ claimedSpotId: spotDoc.id });
         }
-      } else if (spotSnap.exists) {
-        // Unlist — mark unavailable but keep the doc (preserves rental history)
-        await spotRef.update({ isAvailable: false, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      }
+    } else {
+      // User removed their spot — release previously claimed spot if any
+      const prevClaimedId = fresh.claimedSpotId;
+      if (prevClaimedId) {
+        const prevSpotRef = db.collection("parkingSpots").doc(prevClaimedId);
+        const prevSpotSnap = await prevSpotRef.get();
+        if (prevSpotSnap.exists && prevSpotSnap.data().ownerId === req.userId) {
+          await prevSpotRef.update({
+            ownerId: null,
+            isAvailable: true,
+            rentDays: [],
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        }
+        await db.collection("users").doc(req.userId).update({ claimedSpotId: null });
       }
     }
 

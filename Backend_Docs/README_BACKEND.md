@@ -27,10 +27,13 @@ iTandem is a Harvard-Westlake parking management, tandem matching, and carpool p
    - Separate admin authentication for admin panel
 
 2. **Admin Panel** (`/admin.html`)
-   - User management (search, edit, ban/unban, delete)
-   - Parking spot management (CRUD)
+   - User management (search, edit, ban/unban, **delete with full cleanup**)
+   - Parking spot management (list, delete; uses correct `lot`/`number`/`isAvailable` fields)
+   - **Tandem matches** — live table from `matches` collection (`type=tandem`), force-end
+   - **Carpool matches** — live table from `matches` collection (`type=carpool`), force-end
+   - **Rental management** — list all rentals, admin-cancel
    - System control (freeze/unfreeze app)
-   - Analytics dashboard
+   - Analytics dashboard (reads from `users`, `parkingSpots`, `matches`, `rentals`)
    - Role-based access (SUPER_ADMIN, OPERATIONS_ADMIN, CONTENT_ADMIN)
 
 3. **Schedule System** (NEW)

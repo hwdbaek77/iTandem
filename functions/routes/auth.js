@@ -13,7 +13,7 @@ router.post("/signup", async (req, res) => {
   try {
     const {
       email, password, name, phoneNumber, licensePlate, userType,
-      parkingSpot, hasSpot, doesTandem, doesCarpool,
+      parkingSpot, spotLot, hasSpot, doesTandem, doesCarpool,
       isListedForRent, rentDays,
     } = req.body;
 
@@ -38,6 +38,30 @@ router.post("/signup", async (req, res) => {
     const effectiveListed = effectiveHasSpot && !!isListedForRent;
     const effectiveDays = effectiveListed && Array.isArray(rentDays) ? rentDays : [];
 
+    let claimedSpotId = null;
+
+    // If user owns a spot, find and claim it in parkingSpots
+    if (effectiveHasSpot && spotLot && parkingSpot) {
+      const spotQuery = await db.collection("parkingSpots")
+        .where("lot", "==", spotLot)
+        .where("number", "==", parkingSpot)
+        .limit(1)
+        .get();
+      if (!spotQuery.empty) {
+        const spotDoc = spotQuery.docs[0];
+        if (!spotDoc.data().ownerId) {
+          const shouldList = effectiveListed && effectiveDays.length > 0;
+          await spotDoc.ref.update({
+            ownerId: userRecord.uid,
+            isAvailable: shouldList,
+            rentDays: effectiveDays,
+            updatedAt: now,
+          });
+          claimedSpotId = spotDoc.id;
+        }
+      }
+    }
+
     const userDoc = {
       userID: userRecord.uid,
       name,
@@ -45,9 +69,11 @@ router.post("/signup", async (req, res) => {
       licensePlate: licensePlate || null,
       phoneNumber: phoneNumber || null,
       parkingSpot: parkingSpot || null,
+      spotLot: spotLot || null,
       hasSpot: effectiveHasSpot,
       isListedForRent: effectiveListed,
       rentDays: effectiveDays,
+      claimedSpotId,
       doesTandem: doesTandem || false,
       doesCarpool: doesCarpool || false,
       userType: grade,
@@ -59,21 +85,6 @@ router.post("/signup", async (req, res) => {
     };
 
     await db.collection("users").doc(userRecord.uid).set(userDoc);
-
-    // If user listed their spot at signup, create the parkingSpots doc immediately
-    if (effectiveListed && parkingSpot && effectiveDays.length > 0) {
-      await db.collection("parkingSpots").doc(`user_${userRecord.uid}`).set({
-        lot: "Personal",
-        number: parkingSpot,
-        type: "standard",
-        isAvailable: true,
-        ownerId: userRecord.uid,
-        currentRenterId: null,
-        rentDays: effectiveDays,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
 
     res.status(201).json({
       message: "User created successfully",

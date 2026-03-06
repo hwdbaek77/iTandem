@@ -18,19 +18,19 @@
     <!-- Login Screen -->
     <div id="loginScreen" class="min-h-screen flex items-center justify-center">
         <div class="bg-white p-8 rounded-lg shadow-lg w-96">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">🚗 iTandem Admin</h1>
+            <h1 class="text-3xl font-bold text-gray-800 mb-6 text-center">iTandem Admin</h1>
             <form id="adminLoginForm" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
-                    <input type="email" id="adminEmail" required 
+                    <input type="email" id="adminEmail" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input type="password" id="adminPassword" required 
+                    <input type="password" id="adminPassword" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
-                <button type="submit" 
+                <button type="submit"
                         class="w-full bg-purple-600 text-white py-2 rounded-md hover:bg-purple-700 transition">
                     Login as Admin
                 </button>
@@ -44,9 +44,7 @@
         <!-- Top Navigation -->
         <nav class="bg-purple-600 text-white shadow-lg">
             <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                <div class="flex items-center space-x-4">
-                    <h1 class="text-2xl font-bold">🚗 iTandem Admin Panel</h1>
-                </div>
+                <h1 class="text-2xl font-bold">iTandem Admin</h1>
                 <div class="flex items-center space-x-4">
                     <span id="adminName" class="text-sm"></span>
                     <button onclick="logout()" class="bg-purple-700 px-4 py-2 rounded hover:bg-purple-800 transition">
@@ -61,38 +59,19 @@
             <!-- Tab Navigation -->
             <div class="bg-white rounded-lg shadow mb-6">
                 <div class="flex overflow-x-auto border-b">
-                    <button onclick="switchTab('dashboard')" class="tab-btn px-6 py-3 font-medium text-purple-600 border-b-2 border-purple-600">
-                        Dashboard
-                    </button>
-                    <button onclick="switchTab('users')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        Users
-                    </button>
-                    <button onclick="switchTab('spots')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        Parking Spots
-                    </button>
-                    <button onclick="switchTab('tandems')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        Tandems
-                    </button>
-                    <button onclick="switchTab('carpools')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        Carpools
-                    </button>
-                    <button onclick="switchTab('rentals')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        Rentals
-                    </button>
-                    <button onclick="switchTab('reports')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        Reports
-                    </button>
-                    <button onclick="switchTab('system')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">
-                        System Control
-                    </button>
+                    <button onclick="switchTab('dashboard')" class="tab-btn px-6 py-3 font-medium text-purple-600 border-b-2 border-purple-600">Dashboard</button>
+                    <button onclick="switchTab('users')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">Users</button>
+                    <button onclick="switchTab('spots')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">Parking Spots</button>
+                    <button onclick="switchTab('tandems')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">Tandems</button>
+                    <button onclick="switchTab('carpools')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">Carpools</button>
+                    <button onclick="switchTab('rentals')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">Rentals</button>
+                    <button onclick="switchTab('system')" class="tab-btn px-6 py-3 font-medium text-gray-600 hover:text-purple-600">System</button>
                 </div>
             </div>
 
-            <!-- Dashboard Tab -->
+            <!-- ==================== DASHBOARD ==================== -->
             <div id="dashboard" class="tab-content active">
                 <h2 class="text-2xl font-bold mb-6">Analytics Overview</h2>
-                
-                <!-- Stats Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     <div class="bg-white p-6 rounded-lg shadow">
                         <div class="text-gray-500 text-sm font-medium">Total Users</div>
@@ -103,158 +82,134 @@
                         <div class="text-3xl font-bold text-blue-600 mt-2" id="stat-activeTandems">-</div>
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow">
-                        <div class="text-gray-500 text-sm font-medium">Total Rentals</div>
-                        <div class="text-3xl font-bold text-green-600 mt-2" id="stat-totalRentals">-</div>
+                        <div class="text-gray-500 text-sm font-medium">Active Carpools</div>
+                        <div class="text-3xl font-bold text-green-600 mt-2" id="stat-activeCarpools">-</div>
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow">
-                        <div class="text-gray-500 text-sm font-medium">Pending Reports</div>
-                        <div class="text-3xl font-bold text-red-600 mt-2" id="stat-pendingReports">-</div>
+                        <div class="text-gray-500 text-sm font-medium">Total Rentals</div>
+                        <div class="text-3xl font-bold text-amber-600 mt-2" id="stat-totalRentals">-</div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-6 rounded-lg shadow">
-                        <h3 class="text-lg font-bold mb-4">Recent Activity</h3>
+                        <h3 class="text-lg font-bold mb-4">Platform Summary</h3>
                         <div id="recentActivity" class="space-y-2 text-sm text-gray-600">
-                            <p>Loading...</p>
+                            <p>Loading…</p>
                         </div>
                     </div>
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h3 class="text-lg font-bold mb-4">System Status</h3>
                         <div id="systemStatus" class="space-y-2">
-                            <p class="text-sm text-gray-600">Loading...</p>
+                            <p class="text-sm text-gray-600">Loading…</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Users Tab -->
+            <!-- ==================== USERS ==================== -->
             <div id="users" class="tab-content">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">User Management</h2>
                     <div class="flex space-x-2">
-                        <input type="text" id="userSearch" placeholder="Search users..." 
+                        <input type="text" id="userSearch" placeholder="Search users…"
                                class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        <button onclick="searchUsers()" class="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">
-                            Search
-                        </button>
-                        <button onclick="loadAllUsers()" class="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700">
-                            Refresh
-                        </button>
+                        <button onclick="searchUsers()" class="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">Search</button>
+                        <button onclick="loadAllUsers()" class="bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700">Refresh</button>
                     </div>
                 </div>
 
-                <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="bg-white rounded-lg shadow overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Spot</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Interests</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
-                            <tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Loading users...</td></tr>
+                            <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">Loading users…</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Parking Spots Tab -->
+            <!-- ==================== PARKING SPOTS ==================== -->
             <div id="spots" class="tab-content">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-2xl font-bold">Parking Spot Management</h2>
-                    <button onclick="showCreateSpotModal()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
-                        + Add New Spot
-                    </button>
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="spotsGrid">
-                    <p class="text-gray-500">Loading spots...</p>
+                    <p class="text-gray-500">Loading spots…</p>
                 </div>
             </div>
 
-            <!-- Tandems Tab -->
+            <!-- ==================== TANDEMS ==================== -->
             <div id="tandems" class="tab-content">
-                <h2 class="text-2xl font-bold mb-6">Tandem Pairings</h2>
+                <h2 class="text-2xl font-bold mb-6">Tandem Matches</h2>
                 <div class="bg-white rounded-lg shadow p-6">
                     <div id="tandemsContainer">
-                        <p class="text-gray-500">Loading tandems...</p>
+                        <p class="text-gray-500">Loading tandems…</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Carpools Tab -->
+            <!-- ==================== CARPOOLS ==================== -->
             <div id="carpools" class="tab-content">
-                <h2 class="text-2xl font-bold mb-6">Carpool Groups</h2>
+                <h2 class="text-2xl font-bold mb-6">Carpool Matches</h2>
                 <div class="bg-white rounded-lg shadow p-6">
                     <div id="carpoolsContainer">
-                        <p class="text-gray-500">Loading carpools...</p>
+                        <p class="text-gray-500">Loading carpools…</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Rentals Tab -->
+            <!-- ==================== RENTALS ==================== -->
             <div id="rentals" class="tab-content">
-                <h2 class="text-2xl font-bold mb-6">Rental Transactions</h2>
-                <div class="bg-white rounded-lg shadow overflow-hidden">
+                <h2 class="text-2xl font-bold mb-6">Spot Rentals</h2>
+                <div class="bg-white rounded-lg shadow overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renter</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Spot</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Renter</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Spot</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="rentalsTableBody" class="bg-white divide-y divide-gray-200">
-                            <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading rentals...</td></tr>
+                            <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Loading rentals…</td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <!-- Reports Tab -->
-            <div id="reports" class="tab-content">
-                <h2 class="text-2xl font-bold mb-6">Reports & Disputes</h2>
-                <div class="bg-white rounded-lg shadow p-6">
-                    <div id="reportsContainer">
-                        <p class="text-gray-500">Loading reports...</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- System Control Tab -->
+            <!-- ==================== SYSTEM CONTROL ==================== -->
             <div id="system" class="tab-content">
                 <h2 class="text-2xl font-bold mb-6">System Control</h2>
-                
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- App Status -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-bold mb-4">App Status</h3>
                         <div id="appStatusDisplay" class="mb-4">
-                            <p class="text-gray-600">Loading...</p>
+                            <p class="text-gray-600">Loading…</p>
                         </div>
                         <div class="flex space-x-2">
-                            <button onclick="freezeApp()" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">
-                                🔒 Freeze App
-                            </button>
-                            <button onclick="unfreezeApp()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
-                                ✅ Unfreeze App
-                            </button>
+                            <button onclick="freezeApp()" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">Freeze App</button>
+                            <button onclick="unfreezeApp()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">Unfreeze App</button>
                         </div>
                     </div>
-
-                    <!-- System Info -->
                     <div class="bg-white rounded-lg shadow p-6">
                         <h3 class="text-lg font-bold mb-4">System Information</h3>
                         <div class="space-y-2 text-sm">
                             <p><strong>API Version:</strong> 2.0.0</p>
-                            <p><strong>Database:</strong> Firestore (Standard)</p>
+                            <p><strong>Database:</strong> Firestore</p>
                             <p><strong>Functions:</strong> v2 (Node.js 22)</p>
                             <p><strong>Admin Role:</strong> <span id="adminRole">-</span></p>
                         </div>
@@ -264,15 +219,16 @@
         </div>
     </div>
 
-    <!-- Edit User Modal -->
+    <!-- ==================== EDIT USER MODAL ==================== -->
     <div id="editUserModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+        <div class="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold">Edit User</h3>
-                <button onclick="closeEditUserModal()" class="text-gray-500 hover:text-gray-700">✕</button>
+                <button onclick="closeEditUserModal()" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
             </div>
             <form id="editUserForm" class="space-y-4">
                 <input type="hidden" id="editUserId">
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Name</label>
@@ -306,16 +262,59 @@
                             <option value="banned">Banned</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Address</label>
+                        <input type="text" id="editUserAddress" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Zip Code</label>
+                        <input type="text" id="editUserZipCode" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Commute Method</label>
+                        <select id="editUserCommuteMethod" class="w-full px-3 py-2 border rounded-md">
+                            <option value="">Not set</option>
+                            <option value="drive_alone">Drive Alone</option>
+                            <option value="carpool">Carpool</option>
+                            <option value="parent_drop">Parent Drop-off</option>
+                            <option value="public_transit">Public Transit</option>
+                            <option value="bike_walk">Bike / Walk</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Spot Lot</label>
+                        <select id="editUserSpotLot" class="w-full px-3 py-2 border rounded-md">
+                            <option value="">None</option>
+                            <option value="Taper">Taper</option>
+                            <option value="Coldwater">Coldwater</option>
+                            <option value="Hacienda">Hacienda</option>
+                            <option value="St Michael">St Michael</option>
+                            <option value="Hamilton">Hamilton</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Spot Number</label>
+                        <input type="text" id="editUserSpotNumber" class="w-full px-3 py-2 border rounded-md" placeholder="e.g. S45">
+                    </div>
                 </div>
-                <div class="flex justify-end space-x-2">
-                    <button type="button" onclick="closeEditUserModal()" 
-                            class="px-4 py-2 border rounded hover:bg-gray-100">
-                        Cancel
-                    </button>
-                    <button type="submit" 
-                            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">
-                        Save Changes
-                    </button>
+
+                <div class="flex gap-6 pt-2">
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" id="editUserHasSpot" class="rounded"> Has Parking Spot
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" id="editUserDoesTandem" class="rounded"> Does Tandem
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" id="editUserDoesCarpool" class="rounded"> Does Carpool
+                    </label>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeEditUserModal()"
+                            class="px-4 py-2 border rounded hover:bg-gray-100">Cancel</button>
+                    <button type="submit"
+                            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save Changes</button>
                 </div>
             </form>
         </div>
