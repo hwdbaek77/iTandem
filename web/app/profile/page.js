@@ -101,6 +101,7 @@ export default function ProfilePage() {
     address: "",
     zipCode: "",
     commuteMethod: "",
+    userType: "JUNIOR",
     hasSpot: false,
     spotLot: "",
     spot: "",
@@ -137,6 +138,7 @@ export default function ProfilePage() {
         address: profile.address || "",
         zipCode: profile.zipCode || "",
         commuteMethod: profile.commuteMethod || "",
+        userType: profile.userType || "JUNIOR",
         hasSpot: !!profile.hasSpot,
         spotLot: profile.spotLot || "",
         spot: profile.parkingSpot || "",
@@ -148,6 +150,9 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
+  // Map numeric grade from schedule PDF → userType string
+  const GRADE_NUM_MAP = { 10: "SOPHOMORE", 11: "JUNIOR", 12: "SENIOR" };
+
   async function handleUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -156,7 +161,20 @@ export default function ProfilePage() {
     try {
       const result = await api.uploadSchedule(file);
       setUploadMsg(`Parsed ${result.schedule.courseCount} courses for ${result.schedule.name}`);
-      setSchedule(await api.getMySchedule());
+      const freshSchedule = await api.getMySchedule();
+      setSchedule(freshSchedule);
+
+      // Auto-set grade from the parsed schedule
+      const parsedGrade = freshSchedule?.grade ?? result.schedule?.grade;
+      const mapped = GRADE_NUM_MAP[parsedGrade];
+      if (mapped) {
+        setForm((prev) => ({ ...prev, userType: mapped }));
+        await api.updateMe({ userType: mapped });
+        await refreshProfile();
+        setUploadMsg(
+          `Parsed ${result.schedule.courseCount} courses for ${result.schedule.name} — grade set to ${GRADE_LABELS[mapped]}`
+        );
+      }
     } catch (err) {
       setUploadMsg(`Error: ${err.message}`);
     } finally {
@@ -229,6 +247,19 @@ export default function ProfilePage() {
             <Field label="License Plate" value={form.licensePlate} onChange={setField("licensePlate")} placeholder="ABC 1234" />
             <Field label="Home Address" value={form.address} onChange={setField("address")} placeholder="123 Main St" />
             <Field label="ZIP Code" value={form.zipCode} onChange={setField("zipCode")} placeholder="90210" />
+
+            <label className="block">
+              <span className="text-sm text-muted">Grade Level</span>
+              <select
+                value={form.userType}
+                onChange={setField("userType")}
+                className="mt-1 h-10 w-full rounded-lg border border-white/15 bg-background px-3 text-white text-sm outline-none focus:border-accent"
+              >
+                {Object.entries(GRADE_LABELS).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </label>
 
             <label className="block">
               <span className="text-sm text-muted">Commute Preference</span>

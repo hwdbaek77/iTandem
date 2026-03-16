@@ -122,7 +122,12 @@ export default function HomePage() {
       {/* Active Rentals */}
       {activeRentals.length > 0 && (
         <section className="mt-8">
-          <h3 className="text-xl font-bold mb-3">Active Rentals</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xl font-bold">Active Rentals</h3>
+            <Link href="/rentals" className="text-sm text-accent hover:underline">
+              View all
+            </Link>
+          </div>
           <div className="space-y-3">
             {activeRentals.map((rental) => (
               <div key={rental.id} className="rounded-3xl bg-card p-5">
