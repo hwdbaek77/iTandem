@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AppShell from "../../components/AppShell";
 import Link from "next/link";
+import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
 
 function fmtDate(ts) {
@@ -25,6 +26,7 @@ function StatusBadge({ status }) {
 }
 
 export default function RentalsPage() {
+  const { profile } = useAuth();
   const [rentals, setRentals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(null);
@@ -36,7 +38,9 @@ export default function RentalsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleCancel(rentalId) {
+  async function handleCancel(e, rentalId) {
+    e.preventDefault();
+    e.stopPropagation();
     setCancelling(rentalId);
     try {
       await api.cancelRental(rentalId);
@@ -53,13 +57,74 @@ export default function RentalsPage() {
   const active = rentals?.filter((r) => r.status === "active") || [];
   const past = rentals?.filter((r) => r.status !== "active") || [];
 
+  const hasSpot = profile?.hasSpot;
+  const spotLot = profile?.spotLot;
+  const spotNumber = profile?.parkingSpot;
+  const isListed = profile?.isListedForRent;
+  const rentDays = profile?.rentDays || [];
+
   return (
     <AppShell>
-      <h2 className="text-4xl font-bold">My Rentals</h2>
+      <h2 className="text-4xl font-bold">Rentals</h2>
       <p className="mt-2 text-base text-muted">
-        View your active and past parking spot rentals.
+        Your parking spots and rental history.
       </p>
 
+      {/* ── Your Spots ── */}
+      <section className="mt-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold">Your Spots</h3>
+          <Link href="/parking" className="text-sm text-accent hover:underline">
+            Browse lots
+          </Link>
+        </div>
+
+        {hasSpot && spotLot && spotNumber ? (
+          <div className="rounded-3xl bg-card p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">{spotLot} — Spot {spotNumber}</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  {isListed
+                    ? `Listed for rent: ${rentDays.join(", ") || "no days set"}`
+                    : "Not listed for rent"}
+                </p>
+              </div>
+              <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                isListed
+                  ? "bg-accent/15 text-accent border-accent/30"
+                  : "bg-white/5 text-muted border-white/10"
+              }`}>
+                {isListed ? "On Market" : "Private"}
+              </span>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Link
+                href="/profile"
+                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-muted transition-colors hover:bg-white/5"
+              >
+                Edit spot settings
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-3xl bg-card p-5 text-center">
+            <p className="text-sm text-muted">
+              {hasSpot
+                ? "Set your lot and spot number in your profile."
+                : "You don\u2019t have an assigned parking spot."}
+            </p>
+            <Link
+              href="/profile"
+              className="mt-3 inline-block text-sm text-accent hover:underline"
+            >
+              {hasSpot ? "Complete spot setup" : "Update profile"}
+            </Link>
+          </div>
+        )}
+      </section>
+
+      {/* ── Loading ── */}
       {loading && (
         <div className="mt-8 py-8 text-center text-muted text-sm">
           <div className="mb-3 h-6 w-6 animate-spin rounded-full border-2 border-accent border-t-transparent mx-auto" />
@@ -67,7 +132,7 @@ export default function RentalsPage() {
         </div>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ── */}
       {!loading && rentals?.length === 0 && (
         <div className="mt-6 rounded-3xl bg-card p-6 text-center">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-accent/20 text-2xl font-bold text-accent">
@@ -85,13 +150,17 @@ export default function RentalsPage() {
         </div>
       )}
 
-      {/* Active Rentals */}
+      {/* ── Active Rentals ── */}
       {!loading && active.length > 0 && (
         <section className="mt-6">
           <h3 className="text-lg font-semibold mb-3">Active</h3>
           <div className="space-y-3">
             {active.map((rental) => (
-              <div key={rental.id} className="rounded-3xl bg-card p-5">
+              <Link
+                key={rental.id}
+                href={`/rentals/${rental.id}`}
+                className="block rounded-3xl bg-card p-5 transition-colors hover:bg-white/5"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">
@@ -104,7 +173,7 @@ export default function RentalsPage() {
                   <div className="flex items-center gap-3">
                     <StatusBadge status="active" />
                     <button
-                      onClick={() => handleCancel(rental.id)}
+                      onClick={(e) => handleCancel(e, rental.id)}
                       disabled={cancelling === rental.id}
                       className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
                     >
@@ -112,19 +181,23 @@ export default function RentalsPage() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
       )}
 
-      {/* Past Rentals */}
+      {/* ── Past Rentals ── */}
       {!loading && past.length > 0 && (
         <section className="mt-6">
           <h3 className="text-lg font-semibold mb-3">Past</h3>
           <div className="space-y-3">
             {past.map((rental) => (
-              <div key={rental.id} className="rounded-3xl bg-card p-5 opacity-70">
+              <Link
+                key={rental.id}
+                href={`/rentals/${rental.id}`}
+                className="block rounded-3xl bg-card p-5 opacity-70 transition-colors hover:opacity-90"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">
@@ -136,7 +209,7 @@ export default function RentalsPage() {
                   </div>
                   <StatusBadge status={rental.status} />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>
