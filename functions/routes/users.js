@@ -43,7 +43,11 @@ router.put("/me", authenticate, async (req, res) => {
   try {
     const {
       name, phoneNumber, licensePlate, email,
+<<<<<<< HEAD
       address, zipCode, commuteMethod, userType,
+=======
+      address, zipCode, commuteMethod,
+>>>>>>> origin/main
       parkingSpot, spotLot, hasSpot, doesTandem, doesCarpool,
       isListedForRent, rentDays,
     } = req.body;
