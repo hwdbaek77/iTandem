@@ -1,41 +1,70 @@
 import AppShell from "../components/AppShell";
+import StatusCard from "../components/StatusCard";
+import { mockUser } from "../lib/mockUser";
 
 export default function HomePage() {
+  const { name, classYear, tandemPartner, carpoolPartner, parkingSpot } =
+    mockUser;
+
   return (
     <AppShell>
+      {/* Welcome section */}
       <section className="mb-8">
-        <h2 className="text-4xl font-bold leading-tight">Welcome to iTandem</h2>
-        <p className="mt-2 text-lg text-muted">Your Parking Dashboard</p>
+        <h2 className="text-4xl font-bold leading-tight">
+          Welcome, {name}
+        </h2>
+        <p className="mt-1 text-lg text-muted">
+          Class of {classYear} &middot; Your Parking Dashboard
+        </p>
       </section>
 
+      {/* Status cards */}
       <section className="space-y-4">
-        <div className="rounded-3xl bg-card p-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-xl font-bold">
-              C
-            </div>
-            <div>
-              <h3 className="text-2xl font-semibold">Find Carpool Partner</h3>
-              <p className="mt-1 text-sm text-muted">
-                Browse matches and connect with riders.
-              </p>
-            </div>
-          </div>
-        </div>
+        <StatusCard
+          icon="T"
+          title="Tandem Partner"
+          matched={tandemPartner}
+          matchedText={
+            tandemPartner
+              ? `${tandemPartner.name} · ${tandemPartner.spot}`
+              : undefined
+          }
+          actionLabel="Message"
+          actionHref="/chat"
+          promptText="You don't have a tandem partner yet"
+          promptLabel="Find Match"
+          promptHref="/parking"
+        />
 
-        <div className="rounded-3xl bg-card p-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-xl font-bold">
-              P
-            </div>
-            <div>
-              <h3 className="text-2xl font-semibold">Find Parking Spot</h3>
-              <p className="mt-1 text-sm text-muted">
-                Check parking options and spot rankings.
-              </p>
-            </div>
-          </div>
-        </div>
+        <StatusCard
+          icon="C"
+          title="Carpool Partner"
+          matched={carpoolPartner}
+          matchedText={
+            carpoolPartner ? `${carpoolPartner.name}` : undefined
+          }
+          actionLabel="Message"
+          actionHref="/chat"
+          promptText="You don't have a carpool partner yet"
+          promptLabel="Find Match"
+          promptHref="/carpool"
+        />
+
+        <StatusCard
+          icon="P"
+          title="Parking Spot"
+          matched={parkingSpot}
+          matchedText={
+            parkingSpot
+              ? `Spot ${parkingSpot.number} · ${parkingSpot.lot} Lot · ${parkingSpot.type}`
+              : undefined
+          }
+          actionLabel="View Spot"
+          actionHref="/parking"
+          promptText="You don't have a parking spot yet"
+          promptLabel="Find Parking"
+          promptHref="/parking"
+        />
       </section>
     </AppShell>
   );

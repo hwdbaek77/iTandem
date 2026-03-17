@@ -1,0 +1,17 @@
+2/6/26: My deliverable before next class is to update the figma with an updated scheduling system structure. I will do this by walking through assumptions and question with Cursor AI.
+
+1.  There is no way for me to get this via the Didax API right now, so if you could write some code to manually parse PDFS to organize them into a data structure.
+
+2. Just compare day 1 with day 1, day 2 with day 2 etc. and then at the end, average out the compatibility percentage amongst all days (for example, if day 1 compatibility is 48% and day 2 compatibility is 76%, then the average between those days would be 62%. Do this for all 6 days.)
+
+3. For odd days, Block 1 is 8:00-9:15, Community Time is 9:15-10:30, Bl
+
+4. No, because some people play sports, so they would be at school until 5pm or even 6pm some days. others end school at 1:30 or even as early as 11:45.
+
+5. Yes, some students will start school at 10:00, 10:30, 12:45 etc.
+
+6. This is only applicable to seniors, only seniors can go off campus for lunch.
+
+7.the co-curricular block is not always the same
+
+I will answer the other assumptions later.

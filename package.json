@@ -1,0 +1,12 @@
+{
+  "name": "itandem",
+  "version": "1.0.0",
+  "description": "Harvard-Westlake Carpool & Tandem Finder",
+  "main": "src/models/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {}
+}
