@@ -8,7 +8,7 @@ const tabs = [
   { href: "/tandem", label: "Tandem", icon: TandemIcon },
   { href: "/carpool", label: "Carpool", icon: CarpoolIcon },
   { href: "/chat", label: "Messages", icon: ChatIcon },
-  { href: "/parking", label: "Parking", icon: ParkingIcon },
+  { href: "/rentals", label: "Rentals", icon: ParkingIcon },
   { href: "/profile", label: "Profile", icon: ProfileIcon },
 ];
 

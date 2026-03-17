@@ -43,7 +43,11 @@ router.put("/me", authenticate, async (req, res) => {
   try {
     const {
       name, phoneNumber, licensePlate, email,
+<<<<<<< HEAD
+      address, zipCode, commuteMethod, userType,
+=======
       address, zipCode, commuteMethod,
+>>>>>>> origin/main
       parkingSpot, spotLot, hasSpot, doesTandem, doesCarpool,
       isListedForRent, rentDays,
     } = req.body;
@@ -60,6 +64,10 @@ router.put("/me", authenticate, async (req, res) => {
     if (address !== undefined) updateData.address = address;
     if (zipCode !== undefined) updateData.zipCode = zipCode;
     if (commuteMethod !== undefined) updateData.commuteMethod = commuteMethod;
+    if (userType !== undefined) {
+      const VALID_GRADES = ["SOPHOMORE", "JUNIOR", "SENIOR"];
+      if (VALID_GRADES.includes(userType)) updateData.userType = userType;
+    }
     if (parkingSpot !== undefined) updateData.parkingSpot = parkingSpot;
     if (spotLot !== undefined) updateData.spotLot = spotLot;
     if (hasSpot !== undefined) updateData.hasSpot = !!hasSpot;
