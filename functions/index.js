@@ -18,12 +18,14 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/users");
 const canvasRoutes = require("./routes/canvas");
 const healthRoutes = require("./routes/health");
+const locationRoutes = require("./routes/location");
 
 // Use routes
 app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
 app.use("/canvas", canvasRoutes);
 app.use("/health", healthRoutes);
+app.use("/location", locationRoutes);
 
 // Root endpoint
 app.get("/", (req, res) => {
@@ -35,6 +37,7 @@ app.get("/", (req, res) => {
       users: "/users",
       canvas: "/canvas",
       health: "/health",
+      location: "/location",
     },
   });
 });

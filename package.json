@@ -4,7 +4,8 @@
   "description": "Harvard-Westlake Carpool & Tandem Finder",
   "main": "src/models/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/testLocationService.js",
+    "test:location": "node test/testLocationService.js"
   },
   "keywords": [],
   "license": "ISC",

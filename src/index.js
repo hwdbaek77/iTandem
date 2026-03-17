@@ -15,4 +15,5 @@ module.exports = {
   ...require('./RentalService'),
   ...require('./TandemService'),
   ...require('./CarpoolService'),
+  ...require('./LocationService'),
 };

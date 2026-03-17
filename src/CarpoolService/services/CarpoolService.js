@@ -60,7 +60,8 @@ class CarpoolService {
    * @param {Object} [options]
    * @param {CarpoolCompatibilityEngine} [options.compatibilityEngine]
    * @param {GasEstimator}               [options.gasEstimator]
-   * @param {Object}                     [options.rentalService] - RentalService instance for cross-checks
+   * @param {Object}                     [options.rentalService]  - RentalService instance for cross-checks
+   * @param {Object}                     [options.locationService] - LocationService instance for route overlap
    */
   constructor(options = {}) {
     this.compatibilityEngine =
@@ -68,6 +69,7 @@ class CarpoolService {
     this.gasEstimator =
       options.gasEstimator || new GasEstimator();
     this.rentalService = options.rentalService || null;
+    this.locationService = options.locationService || null;
 
     // ── In-memory data stores (replace with DB in production) ───────────
     /** @type {Map<string, CarpoolProfile>} profileId → CarpoolProfile */
@@ -178,17 +180,19 @@ class CarpoolService {
    * Find compatible carpool partners for a user.
    * Corresponds to `GET /api/carpool/matches` (Review.md §V).
    *
+   * If a LocationService is configured, route overlap is computed automatically
+   * via the Google Routes API (async).  Otherwise pass routeOverlapUserIds manually.
+   *
    * @param  {string} userId
    * @param  {Object} [options]
-   * @param  {Set<string>} [options.routeOverlapUserIds] - From Lauren's Location Service
+   * @param  {Set<string>} [options.routeOverlapUserIds] - Pre-computed overlap set (skips API call)
    * @param  {boolean}     [options.driversOnly]          - Only match with users who can drive
-   * @return {CarpoolMatch[]} Sorted by score (highest first)
+   * @return {Promise<CarpoolMatch[]>} Sorted by score (highest first)
    */
-  findMatches(userId, options = {}) {
+  async findMatches(userId, options = {}) {
     const targetProfile = this._getProfileByUser(userId);
     const targetSchedule = this.schedules.get(userId) || [];
 
-    // ── Validate user can carpool ───────────────────────────────────────
     // Design.md: "If you're renting the spot then you shouldn't do the carpool"
     if (this.rentalService && this._isUserRentingSpot(userId)) {
       throw new Error(
@@ -197,26 +201,36 @@ class CarpoolService {
       );
     }
 
-    // ── Gather candidate profiles ───────────────────────────────────────
     let candidates = [...this.profiles.values()].filter((p) => {
-      if (p.userId === userId) return false;     // Skip self
-      if (!p.isActive) return false;              // Skip inactive
-      if (!p.hasValidLocation()) return false;    // Need location
+      if (p.userId === userId) return false;
+      if (!p.isActive) return false;
+      if (!p.hasValidLocation()) return false;
       return true;
     });
 
-    // Optional: filter to drivers only
     if (options.driversOnly) {
       candidates = candidates.filter((p) => p.canDrive());
     }
 
-    // ── Run the compatibility engine ────────────────────────────────────
+    // Auto-compute route overlaps via LocationService when available
+    let routeOverlapUserIds = options.routeOverlapUserIds || new Set();
+    if (routeOverlapUserIds.size === 0 && this.locationService && targetProfile.hasValidLocation()) {
+      try {
+        routeOverlapUserIds = await this.locationService.findRouteOverlaps(
+          targetProfile.homeCoordinates,
+          candidates.map((c) => ({ userId: c.userId, homeCoordinates: c.homeCoordinates })),
+        );
+      } catch (err) {
+        console.error('Route overlap computation failed, proceeding without:', err.message);
+      }
+    }
+
     return this.compatibilityEngine.findMatches({
       targetProfile,
       targetSchedule,
       candidateProfiles: candidates,
       candidateSchedules: this.schedules,
-      routeOverlapUserIds: options.routeOverlapUserIds || new Set(),
+      routeOverlapUserIds,
     });
   }
 
